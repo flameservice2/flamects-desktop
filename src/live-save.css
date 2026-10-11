@@ -1,0 +1,18 @@
+/* LIVE SAVE bar — always at the top of every page */
+#fx-savebar{position:sticky;top:0;z-index:50;margin-left:236px;display:flex;align-items:center;justify-content:flex-end;gap:14px;
+  padding:9px 30px;background:rgba(246,244,239,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);font-size:12.5px;min-height:52px;box-sizing:border-box}
+#fx-status{font-weight:600}
+#fx-status.ok{color:var(--ok)} #fx-status.busy{color:var(--muted)} #fx-status.bad{color:var(--bad)}
+#fx-last{color:var(--muted);margin-right:auto;order:-1}
+#fx-savebar .fx-save{padding:8px 18px}
+#fx-savebar .fx-save:disabled,.fx-save-m:disabled{opacity:.6;cursor:wait}
+.sticky-bar{top:52px}
+.fx-save-m{display:none}
+@media (max-width:920px){
+  #fx-savebar{display:none}
+  .fx-save-m{display:inline-flex}
+  #topbar #sync-badge{margin-left:auto}
+  .sticky-bar{top:54px}
+}
+@media print{ #fx-savebar,.fx-save-m{display:none!important} }
+@media (max-width:440px){ #topbar #sync-badge{display:none} }

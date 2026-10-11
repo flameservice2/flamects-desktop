@@ -1,0 +1,74 @@
+{
+  "name": "flame-cts",
+  "version": "1.16.0",
+  "description": "Flame Contracting Trading & Service WLL - Business Management System",
+  "main": "main.js",
+  "scripts": {
+    "build:app": "node scripts/prepare.js",
+    "start": "node scripts/prepare.js && electron .",
+    "dist:win": "node scripts/prepare.js && electron-builder --win nsis --x64 --publish never",
+    "dist:linux": "node scripts/prepare.js && electron-builder --linux AppImage --publish never"
+  },
+  "author": "Flame Contracting Trading & Service WLL",
+  "devDependencies": {
+    "@fontsource/inter": "^5.3.0",
+    "@fontsource/sora": "^5.3.0",
+    "@supabase/supabase-js": "^2.117.2",
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  },
+  "productName": "Flame CTS",
+  "build": {
+    "appId": "com.flamects.desktop",
+    "productName": "Flame CTS",
+    "copyright": "Flame Contracting Trading & Service WLL",
+    "files": [
+      "main.js",
+      "app/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "win": {
+      "icon": "build/icon.ico",
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "FlameCTS-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Flame CTS"
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office"
+    },
+    "mac": {
+      "icon": "build/icon.png",
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.business"
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "flameservice2",
+      "repo": "flamects-desktop",
+      "releaseType": "release"
+    }
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
+  }
+}
