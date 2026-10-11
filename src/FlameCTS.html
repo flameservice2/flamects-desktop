@@ -6210,13 +6210,13 @@ function invoiceSetsTableHTML(iSet1, iSet2, mcGroups, title){
     ];
   };
   const c1 = cell(iSet1), c2 = cell(iSet2);
-  const th = (t,r)=>'<th style="text-align:'+(r?'right':'left')+';padding:5px 10px;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.5);font-weight:700;white-space:nowrap">'+t+'</th>';
-  const td = (v,r)=>'<td style="text-align:'+(r?'right':'left')+';padding:6px 10px;font-size:12.5px;font-weight:700;color:#fff;white-space:nowrap">'+v+'</td>';
-  const row = (label, c)=>'<tr style="border-top:1px solid rgba(255,255,255,.14)">'+
-    '<td style="padding:6px 10px 6px 0;font-size:11px;font-weight:800;letter-spacing:.04em;color:#f2c48a;white-space:nowrap">'+label+'</td>'+
+  const th = (t,r)=>'<th style="text-align:'+(r?'right':'left')+';padding:5px 10px;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:#8a76b8;font-weight:700;white-space:nowrap">'+t+'</th>';
+  const td = (v,r)=>'<td style="text-align:'+(r?'right':'left')+';padding:6px 10px;font-size:12.5px;font-weight:700;color:#2b1f4f;white-space:nowrap">'+v+'</td>';
+  const row = (label, c)=>'<tr style="border-top:1px solid #ddd2f5">'+
+    '<td style="padding:6px 10px 6px 0;font-size:11px;font-weight:800;letter-spacing:.04em;color:#5b3fa8;white-space:nowrap">'+label+'</td>'+
     td(c[0])+td(c[1])+td(c[2])+td(c[3],true)+td(c[4])+td(c[5])+'</tr>';
-  return '<div class="txn-set" style="background:var(--ink);border-radius:12px;padding:10px 12px;margin-bottom:6px;overflow-x:auto">'+
-    '<div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#f2c48a;margin-bottom:4px">'+esc(title||'Invoice Set 1 & Set 2')+' <span style="font-weight:600;text-transform:none;letter-spacing:0;color:rgba(255,255,255,.5)">(view only)</span></div>'+
+  return '<div class="txn-set inv-set" style="background:#f0ebfb;border:1px solid #d3c6f1;border-radius:12px;padding:10px 12px;margin-bottom:6px;overflow-x:auto">'+
+    '<div style="font-size:10px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:#5b3fa8;margin-bottom:4px">'+esc(title||'Invoice Set 1 & Set 2')+' <span style="font-weight:600;text-transform:none;letter-spacing:0;color:#8a76b8">(view only)</span></div>'+
     '<table style="border-collapse:collapse;min-width:100%"><thead><tr>'+
       '<th style="padding:5px 10px 5px 0"></th>'+th('Date')+th('Main code')+th('Sub code')+th('Amount ('+CUR+')',true)+th('Dr/Cr')+th('Method')+
     '</tr></thead><tbody>'+row('Set 1', c1)+row('Set 2', c2)+'</tbody></table>'+
@@ -6559,12 +6559,13 @@ function viewVoucher(v){
   // Set 1 / Set 2 (how this receipt/payment was booked). All of them are
   // laid out as same-height cards in a single row below, instead of tall
   // stacked tables, so the whole view fits one screen with no scrolling.
-  const setBlock = (label, setData)=>{
+  const setBlock = (label, setData, blue)=>{
     if(!setData) return '';
     const g = mcGroups.find(x=>x.id===setData.mainCodeId);
     const s = g ? (g.subs||[]).find(x=>x.id===setData.subCodeId) : null;
-    return '<div class="card" style="padding:7px 10px;background:var(--paper)">'+
-      '<div style="font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;white-space:nowrap">'+esc(label)+'</div>'+
+    // Invoice Set cards are lavender so they stand apart from this voucher's own Sets.
+    return '<div class="card" style="padding:7px 10px;background:'+(blue?'#f0ebfb;border-color:#d3c6f1':'var(--paper)')+'">'+
+      '<div style="font-size:9px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:'+(blue?'#5b3fa8':'var(--muted)')+';margin-bottom:5px;white-space:nowrap">'+esc(label)+'</div>'+
       grid(2, [
         kv('Date', fdate(setData.date)),
         kv('Amount ('+CUR+')', fmt(setData.amount||0)),
@@ -6585,7 +6586,7 @@ function viewVoucher(v){
     const tot = inv.items.reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
     const iSet1 = invoiceSetForView(inv.set1, inv.acct, inv.date, tot-(inv.acct2&&inv.acct2.amount?inv.acct2.amount:0), mcGroups);
     const iSet2 = invoiceSetForView(inv.set2, inv.acct2, inv.date, inv.acct2?inv.acct2.amount:0, mcGroups);
-    setCards.push(setBlock('Invoice Set 1', iSet1), setBlock('Invoice Set 2', iSet2));
+    setCards.push(setBlock('Invoice Set 1', iSet1, true), setBlock('Invoice Set 2', iSet2, true));
   }
   const vLabel = v.kind==='RV' ? 'New Receipt' : 'Payment';
   setCards.push(setBlock(vLabel+' Set 1', v.set1), setBlock(vLabel+' Set 2', v.set2));
