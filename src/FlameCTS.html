@@ -744,7 +744,7 @@ table.tbl.grid tr:last-child td{border-bottom:1px solid #b9b0a0}
 .contact-actions a{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--paper);color:var(--ink2);text-decoration:none;font-size:14px}
 .contact-actions a:hover{background:var(--line)}
 
-#bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:59;background:var(--ink);padding:6px 4px calc(6px + env(safe-area-inset-bottom));grid-template-columns:repeat(5,1fr)}
+#bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:59;background:var(--ink);padding:6px 4px calc(6px + env(safe-area-inset-bottom));grid-auto-flow:column;grid-auto-columns:1fr}
 #bottomnav button{background:none;border:0;color:#9d938a;font-size:9.5px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;font-weight:600}
 #bottomnav button svg{width:20px;height:20px}
 #bottomnav button.on{color:#f7b32b}
@@ -1895,7 +1895,6 @@ const NAV = [
   {id:'costexpense', t:'Cost / Expense Reports', ic:'tb'},
   {id:'masteredit', t:'Master Edit', ic:'gl'},
   {sec:'Business'},
-  {id:'bookings', t:'Bookings', ic:'book'},
   {id:'contacts', t:'Contacts', ic:'contact'},
   {id:'fuel', t:'Petrol Tracking', ic:'fuel'},
   {id:'timesheet', t:'Time Sheet', ic:'tsheet'},
@@ -1928,7 +1927,7 @@ function buildNav(){
     '<button id="btn-logout">Sign out</button>';
   $('#btn-messages').onclick = messagesInbox;
   $('#btn-logout').onclick = logout;
-  const quick = [['dashboard','Home','dash'],['enquiries','Enquiries','enq'],['bookings','Bookings','book'],['ledger','Ledger','gl'],['reminders','Alerts','rem']];
+  const quick = [['dashboard','Home','dash'],['enquiries','Enquiries','enq'],['ledger','Ledger','gl'],['reminders','Alerts','rem']];
   $('#bottomnav').innerHTML = quick.filter(q=>can(q[0],'view')).map(q =>
     '<button data-nav="'+q[0]+'" class="'+(PAGE===q[0]?'on':'')+'">'+ICONS[q[2]]+q[1]+'</button>').join('');
   $$('#bottomnav [data-nav]').forEach(b => b.onclick = ()=>nav(b.dataset.nav));

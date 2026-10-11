@@ -1,6 +1,6 @@
 {
   "name": "flame-cts",
-  "version": "1.16.1",
+  "version": "1.17.0",
   "description": "Flame Contracting Trading & Service WLL - Business Management System",
   "main": "main.js",
   "scripts": {
