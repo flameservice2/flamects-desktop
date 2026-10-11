@@ -6,7 +6,7 @@ name: Release
 on:
   push:
     branches: [main]
-    paths: [package.json]
+    paths: [package.json, .github/workflows/release.yml]
   workflow_dispatch:
 
 permissions:
@@ -31,11 +31,25 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - name: Build and publish
+      # Any failure prints its last lines as error annotations, so the reason
+      # shows on the run's summary page.
+      - name: Build installer
         if: steps.ver.outputs.exists == 'false'
+        shell: bash
+        run: |
+          run() { "$@" > step.log 2>&1 || { tail -n 25 step.log | sed 's/^/::error::/'; exit 1; }; }
+          run npm ci
+          run npm run build:app
+          run npx electron-builder --win nsis --x64 --publish never
+          ls dist
+      - name: Publish release
+        if: steps.ver.outputs.exists == 'false'
+        shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npm ci
-          npm run build:app
-          npx electron-builder --win nsis --x64 --publish always
+          v="${{ steps.ver.outputs.version }}"
+          gh release create "v$v" \
+            "dist/FlameCTS-Setup-$v.exe" "dist/FlameCTS-Setup-$v.exe.blockmap" dist/latest.yml \
+            --title "Flame CTS $v" --notes "Flame CTS $v. Installed apps update to this version automatically." > step.log 2>&1 \
+            || { tail -n 25 step.log | sed 's/^/::error::/'; exit 1; }
