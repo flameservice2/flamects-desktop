@@ -599,16 +599,19 @@ a{color:var(--fl2)}
 .db-temp small{font-size:15px;color:var(--muted);margin-left:1px;vertical-align:top;position:relative;top:4px}
 .db-wx{font-weight:600;font-size:14px;margin-bottom:3px}
 .db-side{display:flex;flex-direction:column;gap:12px;min-width:0}
-.db-opp .db-card-h{margin-bottom:8px}
-.db-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px}
-.db-chips button{border:1px solid var(--line);background:var(--card);font:inherit;font-size:11.5px;font-weight:600;color:var(--ink2);padding:4px 9px;border-radius:99px;cursor:pointer}
-.db-chips button.on{background:#c04a12;border-color:#c04a12;color:#fff}
-.db-opp .db-head:hover .db-ht{color:#c04a12}
-.db-opp .db-head:last-child{border-bottom:0}
-.db-portals{margin-top:8px;padding-top:10px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
-.db-portals-l{flex-basis:100%;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-.db-portals a{font-size:12px;font-weight:600;color:#c04a12;text-decoration:none;background:#fdeadd;border-radius:7px;padding:4px 9px}
-.db-portals a:hover{background:#fbd9c3}
+.db-opp .db-card-h{margin-bottom:4px}
+.db-portal-h{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:10px 0 0}
+.db-portal-ic.alt{background:linear-gradient(135deg,#2f7fb5,#1f5f8b)}
+.db-opp a.db-portal{display:flex;align-items:center;gap:11px;padding:9px 0;border-bottom:1px solid #f0ede6;color:inherit;text-decoration:none}
+.db-opp a.db-portal:last-child{border-bottom:0}
+.db-portal-ic{flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#f7b32b,#ee6c2b 55%,#d9331f);color:#fff;font-family:'Sora';font-weight:700;font-size:15px}
+.db-portal-m{flex:1;min-width:0;display:flex;flex-direction:column;gap:1px}
+.db-portal-m b{font-size:13.5px}
+.db-portal-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:3px}
+.db-portal-tags i{font-style:normal;font-size:10.5px;font-weight:600;color:#8a3a10;background:#fdeadd;border-radius:5px;padding:1px 6px}
+.db-portal-go{flex:none;font-size:11.5px;font-weight:700;color:#c04a12;opacity:.75}
+.db-opp a.db-portal:hover .db-portal-go{opacity:1}
+.db-opp a.db-portal:hover b{color:#c04a12}
 .db-skel{height:12px;border-radius:6px;margin:10px 0;background:linear-gradient(90deg,#f1ede6 25%,#e8e2d8 50%,#f1ede6 75%);background-size:200% 100%;animation:dbsk 1.2s infinite linear}
 .db-skel.big{height:120px}
 @keyframes dbsk{to{background-position:-200% 0}}
@@ -2341,12 +2344,11 @@ function rDashboard(m){
       '<div class="db-doha-top"><div><div class="db-doha-city">Doha, Qatar</div><div class="db-doha-date">'+today+'</div></div><div class="db-clock num" id="db-clock">'+dohaTime()+'</div></div>'+
       '<div id="db-weather" class="db-weather"><div class="db-skel" style="width:60%"></div><div class="db-skel" style="width:40%"></div></div>'+
     '</div>'+
-    '<div class="card db-card db-opp"><div class="db-card-h"><span class="db-ic">'+ICONS.qtn+'</span><h3>Work opportunities</h3><span class="tiny">Qatar</span>'+
-      '<span class="tiny" id="db-opp-at" style="margin-left:auto"></span></div>'+
-      '<div class="db-chips">'+OPP_CATS.map(c=>'<button data-ocat="'+c[0]+'"'+(oppCat===c[0]?' class="on"':'')+'>'+c[1]+'</button>').join('')+'</div>'+
-      '<div id="db-opp-b"></div>'+
-      '<div class="db-portals"><div class="db-portals-l">Official tender portals</div>'+
-        OPP_PORTALS.map(p=>'<a href="'+p[1]+'" target="_blank" rel="noopener noreferrer" title="'+esc(p[2])+'">'+esc(p[0])+' ↗</a>').join('')+'</div>'+
+    '<div class="card db-card db-opp"><div class="db-card-h"><span class="db-ic">'+ICONS.qtn+'</span><h3>Tenders & business requirements</h3><span class="tiny">Qatar</span></div>'+
+      OPP_GROUPS.map(g=>'<div class="db-portal-h">'+esc(g[0])+'</div>'+g[1].map(p=>'<a class="db-portal" href="'+p.url+'" target="_blank" rel="noopener noreferrer">'+
+        '<span class="db-portal-ic'+(g[2]?' alt':'')+'">'+esc(p.name.slice(0,1))+'</span>'+
+        '<span class="db-portal-m"><b>'+esc(p.name)+'</b><span class="tiny">'+esc(p.desc)+'</span><span class="db-portal-tags">'+p.tags.map(t=>'<i>'+esc(t)+'</i>').join('')+'</span></span>'+
+        '<span class="db-portal-go">Open ↗</span></a>').join('')).join('')+
     '</div>'+
     '</div>'+
   '</div>';
@@ -2354,9 +2356,8 @@ function rDashboard(m){
   const ne = $('#d-newenq'); if(ne) ne.onclick = ()=>enquiryForm();
   $$('[data-go]',m).forEach(b=>{ b.onclick = ()=>nav(b.dataset.go); b.onkeydown = e=>{ if(e.key==='Enter') nav(b.dataset.go); }; });
   $$('[data-ntab]',m).forEach(b=>b.onclick=()=>{ newsTab = b.dataset.ntab; $$('[data-ntab]',m).forEach(x=>x.classList.toggle('on', x===b)); showNews(false); });
-  $$('[data-ocat]',m).forEach(b=>b.onclick=()=>{ oppCat = b.dataset.ocat; $$('[data-ocat]',m).forEach(x=>x.classList.toggle('on', x===b)); showOpps(false); });
-  $('#db-news-re').onclick = ()=>{ showNews(true); showDoha(true); showOpps(true); };
-  showNews(false); showDoha(false); showOpps(false);
+  $('#db-news-re').onclick = ()=>{ showNews(true); showDoha(true); };
+  showNews(false); showDoha(false);
   clearInterval(window.__dbClock);
   window.__dbClock = setInterval(()=>{ const c = document.getElementById('db-clock'); if(!c){ clearInterval(window.__dbClock); return; } c.textContent = dohaTime(); }, 15000);
 }
@@ -2416,12 +2417,12 @@ function parseFeed(key, text){
     return x;
   });
 }
-async function loadFeeds(cacheKey, keys, force, max){
+async function loadFeeds(cacheKey, keys, force, max, keep){
   const cached = dbStore(cacheKey);
   if(!force && cached && Date.now()-cached.at < 15*60000) return cached;
   const res = await Promise.allSettled(keys.map(k=>feedGet(k).then(t=>parseFeed(k,t))));
   const seen = new Set(), items = [];
-  res.forEach(r=>{ if(r.status==='fulfilled') r.value.forEach(x=>{ const k = x.title.toLowerCase().slice(0,80); if(!seen.has(k)){ seen.add(k); items.push(x); } }); });
+  res.forEach(r=>{ if(r.status==='fulfilled') r.value.forEach(x=>{ const k = x.title.toLowerCase().slice(0,80); if(!seen.has(k) && (!keep || keep(x))){ seen.add(k); items.push(x); } }); });
   if(!items.length){
     if(cached) return Object.assign({}, cached, {stale:true});
     if(res.some(r=>r.status==='fulfilled')){ const v = {at:Date.now(), items:[]}; dbStore(cacheKey, v); return v; }
@@ -2461,29 +2462,27 @@ async function showNews(force){
   }
 }
 const WX = {0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Cloudy',45:'Fog',48:'Fog',51:'Light drizzle',53:'Drizzle',55:'Drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
-// Work opportunities: Qatar news about tenders, contracts and requirements in
-// Flame's business lines (Google News, Qatar edition), plus the official
-// portals where Qatar's tenders are actually published.
-const OPP_CATS = [['all','All'],['road','Road Work Support'],['tma','TMA / Vehicle Rental'],['heavy','Heavy Equipment'],['trading','Industrial Trading'],['construction','Construction & Maintenance'],['contracting','General Contracting']];
-const OPP_PORTALS = [['Monaqasat','https://monaqasat.mof.gov.qa','Government e-tendering (Ministry of Finance)'],['Ashghal','https://www.ashghal.gov.qa','Public Works Authority'],['QatarEnergy','https://www.qatarenergy.qa','QatarEnergy'],['Kahramaa','https://www.km.qa','Qatar General Electricity & Water Corporation']];
-let oppCat = 'all';
-async function showOpps(force){
-  const box = document.getElementById('db-opp-b'); if(!box) return;
-  const cat = oppCat, ck = 'opp.'+cat, cached = dbStore(ck);
-  const draw = v => !v.items.length ? '<div class="empty" style="padding:18px">Nothing new in this area right now.</div>' :
-    v.items.map(x=>'<a class="db-head" href="'+esc(x.link)+'" target="_blank" rel="noopener noreferrer"><div class="db-meta"><span class="db-src">'+esc(x.source||'News')+'</span>'+(x.date?'<span class="tiny">'+agoText(x.date)+'</span>':'')+'</div><div class="db-ht">'+esc(x.title)+'</div></a>').join('')+
-    (v.stale?'<div class="tiny" style="margin-top:6px">Offline — showing the last saved list.</div>':'');
-  box.innerHTML = cached ? draw(cached) : '<div class="db-skel"></div>'.repeat(4);
-  try{
-    const v = await loadFeeds(ck, ['opp-'+cat], force, 5);
-    const b2 = document.getElementById('db-opp-b'); if(!b2 || oppCat!==cat) return;
-    b2.innerHTML = draw(v);
-    const at = document.getElementById('db-opp-at'); if(at) at.textContent = v.stale ? 'offline' : agoText(v.at);
-  }catch(e){
-    const b2 = document.getElementById('db-opp-b'); if(!b2 || oppCat!==cat) return;
-    if(!cached) b2.innerHTML = '<div class="empty" style="padding:18px"><b>Could not load</b>Check the internet connection, then press ↻.</div>';
-  }
-}
+// Official tender portals in Qatar for Flame's lines of work (road work
+// support, TMA / vehicle rental, heavy equipment, industrial trading,
+// construction & maintenance, general contracting). They open in the
+// normal browser.
+const OPP_GROUPS = [
+  ['Government tenders', [
+    {name:'Monaqasat', url:'https://monaqasat.mof.gov.qa', desc:'Government e-tendering portal · Ministry of Finance', tags:['All ministries']},
+    {name:'Ashghal', url:'https://www.ashghal.gov.qa', desc:'Public Works Authority · roads, drainage, buildings', tags:['Road works','TMA','Construction']},
+    {name:'Ministry of Municipality', url:'https://www.mm.gov.qa', desc:'Municipal works and services', tags:['Maintenance','Contracting']},
+    {name:'QatarEnergy', url:'https://www.qatarenergy.qa', desc:'Energy sector suppliers and tenders', tags:['Heavy equipment','Industrial trading']},
+    {name:'Kahramaa', url:'https://www.km.qa', desc:'Electricity & water corporation', tags:['Construction','Maintenance']},
+    {name:'Qatar Rail', url:'https://www.qr.com.qa', desc:'Rail projects and procurement', tags:['Contracting','Heavy equipment']},
+    {name:'Mwani Qatar', url:'https://www.mwani.com.qa', desc:'Ports authority', tags:['Industrial trading','Contracting']}
+  ]],
+  ['Business requirements', [
+    {name:'Qatar Chamber', url:'https://www.qatarchamber.com', desc:'Business opportunities and company requests', tags:['Trading','Contracting']},
+    {name:'Qatar Development Bank', url:'https://www.qdb.qa', desc:'SME procurement and supplier opportunities', tags:['Supply','Services']},
+    {name:'Mowasalat (Karwa)', url:'https://www.mowasalat.com', desc:'Transport and fleet services', tags:['Vehicle rental']},
+    {name:'Qatar Living Classifieds', url:'https://www.qatarliving.com/classifieds', desc:'Company and private requirements', tags:['Equipment','Vehicles','Services']}
+  ], 1]
+];
 async function showDoha(force){
   const get = async (k, maxAge) => { const c = dbStore(k); if(!force && c && Date.now()-c.at < maxAge) return c;
     try{ const v = {at:Date.now(), d:JSON.parse(await feedGet(k))}; dbStore(k, v); return v; }catch(e){ if(c) return c; throw e; } };
