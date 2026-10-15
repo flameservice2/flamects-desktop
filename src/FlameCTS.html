@@ -578,7 +578,7 @@ a{color:var(--fl2)}
 .db-tabs{display:flex;gap:2px;background:var(--paper);border-radius:9px;padding:3px;margin-left:6px}
 .db-tabs button{border:0;background:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);padding:5px 12px;border-radius:7px;cursor:pointer}
 .db-tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(33,26,20,.12)}
-.db-news a{color:inherit;text-decoration:none}
+.db-news a,.db-opp a.db-head{color:inherit;text-decoration:none}
 .db-feat{display:flex;gap:16px;padding:12px 0 14px;border-bottom:1px solid var(--line)}
 .db-feat img{flex:none;width:240px;height:140px;object-fit:cover;border-radius:10px;background:var(--paper)}
 .db-feat h4{font-family:'Sora';font-size:18px;line-height:1.3;letter-spacing:-.2px;margin:4px 0 6px}
@@ -598,12 +598,17 @@ a{color:var(--fl2)}
 .db-temp{font-family:'Sora';font-size:34px;font-weight:700;letter-spacing:-1px;color:var(--ink)}
 .db-temp small{font-size:15px;color:var(--muted);margin-left:1px;vertical-align:top;position:relative;top:4px}
 .db-wx{font-weight:600;font-size:14px;margin-bottom:3px}
-.db-fx-h{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 18px 4px}
-.db-fx{padding:0 18px 12px}
-.db-fx-r{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0ede6}
-.db-fx-r:last-child{border-bottom:0}
-.db-fx-r b{font-size:12.5px}
-.db-cc{font-size:11px;font-weight:700;background:var(--paper);border-radius:6px;padding:3px 0;text-align:center;color:var(--ink2)}
+.db-side{display:flex;flex-direction:column;gap:12px;min-width:0}
+.db-opp .db-card-h{margin-bottom:8px}
+.db-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:4px}
+.db-chips button{border:1px solid var(--line);background:var(--card);font:inherit;font-size:11.5px;font-weight:600;color:var(--ink2);padding:4px 9px;border-radius:99px;cursor:pointer}
+.db-chips button.on{background:#c04a12;border-color:#c04a12;color:#fff}
+.db-opp .db-head:hover .db-ht{color:#c04a12}
+.db-opp .db-head:last-child{border-bottom:0}
+.db-portals{margin-top:8px;padding-top:10px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.db-portals-l{flex-basis:100%;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.db-portals a{font-size:12px;font-weight:600;color:#c04a12;text-decoration:none;background:#fdeadd;border-radius:7px;padding:4px 9px}
+.db-portals a:hover{background:#fbd9c3}
 .db-skel{height:12px;border-radius:6px;margin:10px 0;background:linear-gradient(90deg,#f1ede6 25%,#e8e2d8 50%,#f1ede6 75%);background-size:200% 100%;animation:dbsk 1.2s infinite linear}
 .db-skel.big{height:120px}
 @keyframes dbsk{to{background-position:-200% 0}}
@@ -2331,19 +2336,27 @@ function rDashboard(m){
       '<div class="db-tabs">'+NEWS_TABS.map(t=>'<button data-ntab="'+t[0]+'"'+(newsTab===t[0]?' class="on"':'')+'>'+t[1]+'</button>').join('')+'</div>'+
       '<span class="tiny" id="db-news-at" style="margin-left:auto"></span><button class="db-link" id="db-news-re" title="Refresh">↻</button></div>'+
       '<div id="db-news-b"></div></div>'+
+    '<div class="db-side">'+
     '<div class="card db-doha">'+
       '<div class="db-doha-top"><div><div class="db-doha-city">Doha, Qatar</div><div class="db-doha-date">'+today+'</div></div><div class="db-clock num" id="db-clock">'+dohaTime()+'</div></div>'+
       '<div id="db-weather" class="db-weather"><div class="db-skel" style="width:60%"></div><div class="db-skel" style="width:40%"></div></div>'+
-      '<div class="db-fx-h">Exchange rates <span class="tiny" id="db-fx-at"></span></div>'+
-      '<div id="db-fx" class="db-fx"><div class="db-skel"></div><div class="db-skel"></div><div class="db-skel"></div></div>'+
+    '</div>'+
+    '<div class="card db-card db-opp"><div class="db-card-h"><span class="db-ic">'+ICONS.qtn+'</span><h3>Work opportunities</h3><span class="tiny">Qatar</span>'+
+      '<span class="tiny" id="db-opp-at" style="margin-left:auto"></span></div>'+
+      '<div class="db-chips">'+OPP_CATS.map(c=>'<button data-ocat="'+c[0]+'"'+(oppCat===c[0]?' class="on"':'')+'>'+c[1]+'</button>').join('')+'</div>'+
+      '<div id="db-opp-b"></div>'+
+      '<div class="db-portals"><div class="db-portals-l">Official tender portals</div>'+
+        OPP_PORTALS.map(p=>'<a href="'+p[1]+'" target="_blank" rel="noopener noreferrer" title="'+esc(p[2])+'">'+esc(p[0])+' ↗</a>').join('')+'</div>'+
+    '</div>'+
     '</div>'+
   '</div>';
 
   const ne = $('#d-newenq'); if(ne) ne.onclick = ()=>enquiryForm();
   $$('[data-go]',m).forEach(b=>{ b.onclick = ()=>nav(b.dataset.go); b.onkeydown = e=>{ if(e.key==='Enter') nav(b.dataset.go); }; });
   $$('[data-ntab]',m).forEach(b=>b.onclick=()=>{ newsTab = b.dataset.ntab; $$('[data-ntab]',m).forEach(x=>x.classList.toggle('on', x===b)); showNews(false); });
-  $('#db-news-re').onclick = ()=>{ showNews(true); showDoha(true); };
-  showNews(false); showDoha(false);
+  $$('[data-ocat]',m).forEach(b=>b.onclick=()=>{ oppCat = b.dataset.ocat; $$('[data-ocat]',m).forEach(x=>x.classList.toggle('on', x===b)); showOpps(false); });
+  $('#db-news-re').onclick = ()=>{ showNews(true); showDoha(true); showOpps(true); };
+  showNews(false); showDoha(false); showOpps(false);
   clearInterval(window.__dbClock);
   window.__dbClock = setInterval(()=>{ const c = document.getElementById('db-clock'); if(!c){ clearInterval(window.__dbClock); return; } c.textContent = dohaTime(); }, 15000);
 }
@@ -2369,7 +2382,7 @@ async function feedGet(key){
   try{
     let url;
     if(location.protocol==='app:') url = '/__feed/'+key;
-    else if(key==='weather' || key==='fx') url = FEED_URLS[key];
+    else if(key==='weather') url = FEED_URLS[key];
     else url = 'https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(FEED_URLS[key]);
     const r = await fetch(url, {signal:ctl.signal, cache:'no-store'});
     if(!r.ok) throw new Error('HTTP '+r.status);
@@ -2403,22 +2416,26 @@ function parseFeed(key, text){
     return x;
   });
 }
-async function loadNews(tab, force){
-  const cached = dbStore('news.'+tab);
+async function loadFeeds(cacheKey, keys, force, max){
+  const cached = dbStore(cacheKey);
   if(!force && cached && Date.now()-cached.at < 15*60000) return cached;
-  const keys = (NEWS_TABS.find(t=>t[0]===tab)||NEWS_TABS[0])[2];
   const res = await Promise.allSettled(keys.map(k=>feedGet(k).then(t=>parseFeed(k,t))));
   const seen = new Set(), items = [];
   res.forEach(r=>{ if(r.status==='fulfilled') r.value.forEach(x=>{ const k = x.title.toLowerCase().slice(0,80); if(!seen.has(k)){ seen.add(k); items.push(x); } }); });
-  if(!items.length){ if(cached) return Object.assign({}, cached, {stale:true}); throw new Error('no news'); }
+  if(!items.length){
+    if(cached) return Object.assign({}, cached, {stale:true});
+    if(res.some(r=>r.status==='fulfilled')){ const v = {at:Date.now(), items:[]}; dbStore(cacheKey, v); return v; }
+    throw new Error('offline');
+  }
   items.sort((a,b)=>b.date-a.date);
-  const v = {at:Date.now(), items:items.slice(0,13)};
-  dbStore('news.'+tab, v); return v;
+  const v = {at:Date.now(), items:items.slice(0,max)};
+  dbStore(cacheKey, v); return v;
 }
+function loadNews(tab, force){ return loadFeeds('news.'+tab, (NEWS_TABS.find(t=>t[0]===tab)||NEWS_TABS[0])[2], force, 15); }
 function newsHTML(v){
   const it = v.items; if(!it.length) return '<div class="empty">No headlines right now.</div>';
   const fi = Math.max(0, it.slice(0,4).findIndex(x=>x.img));
-  const f = it[fi], rest = it.filter((x,i)=>i!==fi).slice(0,10);
+  const f = it[fi], rest = it.filter((x,i)=>i!==fi).slice(0,12);
   const a = (x, inner, cls) => '<a class="'+cls+'" href="'+esc(x.link)+'" target="_blank" rel="noopener noreferrer">'+inner+'</a>';
   const meta = x => '<span class="db-src">'+esc(x.source||'News')+'</span>'+(x.date?'<span class="tiny">'+agoText(x.date)+'</span>':'');
   return a(f, (f.img?'<img src="'+esc(f.img)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':'')+
@@ -2444,7 +2461,29 @@ async function showNews(force){
   }
 }
 const WX = {0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Cloudy',45:'Fog',48:'Fog',51:'Light drizzle',53:'Drizzle',55:'Drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
-const FX_ROWS = [['USD','US Dollar',0],['EUR','Euro',0],['GBP','British Pound',0],['SAR','Saudi Riyal',0],['AED','UAE Dirham',0],['INR','Indian Rupee',1],['PHP','Philippine Peso',1]];
+// Work opportunities: Qatar news about tenders, contracts and requirements in
+// Flame's business lines (Google News, Qatar edition), plus the official
+// portals where Qatar's tenders are actually published.
+const OPP_CATS = [['all','All'],['road','Road Work Support'],['tma','TMA / Vehicle Rental'],['heavy','Heavy Equipment'],['trading','Industrial Trading'],['construction','Construction & Maintenance'],['contracting','General Contracting']];
+const OPP_PORTALS = [['Monaqasat','https://monaqasat.mof.gov.qa','Government e-tendering (Ministry of Finance)'],['Ashghal','https://www.ashghal.gov.qa','Public Works Authority'],['QatarEnergy','https://www.qatarenergy.qa','QatarEnergy'],['Kahramaa','https://www.km.qa','Qatar General Electricity & Water Corporation']];
+let oppCat = 'all';
+async function showOpps(force){
+  const box = document.getElementById('db-opp-b'); if(!box) return;
+  const cat = oppCat, ck = 'opp.'+cat, cached = dbStore(ck);
+  const draw = v => !v.items.length ? '<div class="empty" style="padding:18px">Nothing new in this area right now.</div>' :
+    v.items.map(x=>'<a class="db-head" href="'+esc(x.link)+'" target="_blank" rel="noopener noreferrer"><div class="db-meta"><span class="db-src">'+esc(x.source||'News')+'</span>'+(x.date?'<span class="tiny">'+agoText(x.date)+'</span>':'')+'</div><div class="db-ht">'+esc(x.title)+'</div></a>').join('')+
+    (v.stale?'<div class="tiny" style="margin-top:6px">Offline — showing the last saved list.</div>':'');
+  box.innerHTML = cached ? draw(cached) : '<div class="db-skel"></div>'.repeat(4);
+  try{
+    const v = await loadFeeds(ck, ['opp-'+cat], force, 5);
+    const b2 = document.getElementById('db-opp-b'); if(!b2 || oppCat!==cat) return;
+    b2.innerHTML = draw(v);
+    const at = document.getElementById('db-opp-at'); if(at) at.textContent = v.stale ? 'offline' : agoText(v.at);
+  }catch(e){
+    const b2 = document.getElementById('db-opp-b'); if(!b2 || oppCat!==cat) return;
+    if(!cached) b2.innerHTML = '<div class="empty" style="padding:18px"><b>Could not load</b>Check the internet connection, then press ↻.</div>';
+  }
+}
 async function showDoha(force){
   const get = async (k, maxAge) => { const c = dbStore(k); if(!force && c && Date.now()-c.at < maxAge) return c;
     try{ const v = {at:Date.now(), d:JSON.parse(await feedGet(k))}; dbStore(k, v); return v; }catch(e){ if(c) return c; throw e; } };
@@ -2455,16 +2494,6 @@ async function showDoha(force){
       '<div><div class="db-wx">'+esc(WX[c.weather_code]||'—')+'</div>'+
       '<div class="tiny">H '+Math.round((d.temperature_2m_max||[])[0])+'° · L '+Math.round((d.temperature_2m_min||[])[0])+'° · Humidity '+Math.round(c.relative_humidity_2m)+'% · Wind '+Math.round(c.wind_speed_10m)+' km/h</div></div>';
   }).catch(()=>{ const el = document.getElementById('db-weather'); if(el) el.innerHTML = '<div class="tiny">Weather is unavailable offline.</div>'; });
-  get('fx', 6*3600000).then(v=>{
-    const el = document.getElementById('db-fx'); if(!el) return;
-    const r = v.d.rates||{};
-    el.innerHTML = FX_ROWS.filter(x=>r[x[0]]).map(x=>{
-      const val = x[2] ? r[x[0]] : 1/r[x[0]];
-      return '<div class="db-fx-r"><span class="db-cc">'+x[0]+'</span><span class="tiny">'+x[1]+'</span><b class="num">'+
-        (x[2] ? '1 QAR = '+val.toFixed(2)+' '+x[0] : '1 '+x[0]+' = '+val.toFixed(4)+' QAR')+'</b></div>';
-    }).join('');
-    const at = document.getElementById('db-fx-at'); if(at && v.d.time_last_update_unix) at.textContent = '· '+new Date(v.d.time_last_update_unix*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
-  }).catch(()=>{ const el = document.getElementById('db-fx'); if(el) el.innerHTML = '<div class="tiny">Rates are unavailable offline.</div>'; });
 }
 function kpi(lbl, val, sub, cls, navId){
   const clickable = navId ? ' clickable" tabindex="0" role="button" onclick="nav(\''+navId+'\')" onkeydown="if(event.key===\'Enter\')nav(\''+navId+'\')' : '';
