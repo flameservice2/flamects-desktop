@@ -2,6 +2,7 @@ const { app, BrowserWindow, Menu, protocol, net, shell, dialog } = require('elec
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { pathToFileURL } = require('url');
+const { handleFeed } = require('./feeds');
 
 // Serve the page from app://flame/ rather than file:// so it has a real,
 // stable origin: the Supabase login session and offline cache (both kept in
@@ -25,6 +26,7 @@ if (!app.requestSingleInstanceLock()) {
 function start() {
   protocol.handle('app', (req) => {
     const { pathname } = new URL(req.url);
+    if (pathname.startsWith('/__feed/')) return handleFeed(pathname.slice(8), (u, o) => net.fetch(u, o));
     const file = path.normalize(path.join(APP_DIR, decodeURIComponent(pathname)));
     if (!file.startsWith(APP_DIR)) return new Response('Not found', { status: 404 });
     return net.fetch(pathToFileURL(file).toString());

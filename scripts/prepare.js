@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { desktopize } = require('../lib/desktopize');
 const pkg = require('../package.json');
+const { FEEDS } = require('../feeds');
 
 const root = path.join(__dirname, '..');
 const out = path.join(root, 'app');
@@ -29,6 +30,8 @@ const liveCss = fs.readFileSync(path.join(root, 'src', 'live-save.css'), 'utf8')
 const liveJs = fs.readFileSync(path.join(root, 'src', 'live-save.js'), 'utf8');
 swap(/<\/style>\s*<\/head>/, '</style>\n<style>\n' + liveCss + '</style>\n</head>', 'the end of <head>');
 swap(/<\/body>\s*<\/html>\s*$/, () => '<script>\n' + liveJs + '</script>\n</body>\n</html>\n', 'the end of <body>');
+// Dashboard news sources: one list (feeds.js) shared with the main process.
+swap(/const FEED_URLS = \{\};/, () => 'const FEED_URLS = ' + JSON.stringify(FEEDS) + ';', 'the FEED_URLS placeholder');
 // Version stamp: lets an installed app tell whether a published update is newer.
 swap(/<head>/, '<head>\n<meta name="flame-version" content="' + pkg.version + '">', 'the <head> tag');
 

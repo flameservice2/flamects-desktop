@@ -568,27 +568,48 @@ a{color:var(--fl2)}
 .db-shorts{flex:1 1 100%;display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:6px 8px}
 .db-short{display:flex;align-items:center;gap:6px;border:1px solid transparent;background:none;border-radius:8px;padding:6px 9px;font:inherit;font-size:12.5px;color:var(--ink2);cursor:pointer}
 .db-short svg{width:15px;height:15px;color:#c04a12}
-.db-row3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;align-items:stretch}
 .db-card{display:flex;flex-direction:column;padding:14px 16px;min-width:0}
 .db-card-h{display:flex;align-items:center;gap:8px;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:4px}
 .db-card-h h3{font-size:14px;margin-right:2px;white-space:nowrap}
 .db-shorts-l{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:0 4px 0 6px}
 .db-link{border:0;background:none;font:inherit;font-size:12px;font-weight:600;color:#c04a12;cursor:pointer;padding:2px 0;white-space:nowrap}
 .db-link:hover{text-decoration:underline}
-.db-split{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0 4px}
-.db-split>div{background:var(--paper);border-radius:9px;padding:8px 10px;display:flex;flex-direction:column;gap:2px}
-.db-split span{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
-.db-split b{font-size:14px}
-.db-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f0ede6}
-.db-item:last-child{border-bottom:0}
-.db-item-m{flex:1;min-width:0}
-.db-item-t{display:flex;align-items:center;gap:6px;min-width:0;font-size:13px}
-.db-item-t b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.db-clip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}
-.db-due{flex:none;font-size:11.5px;font-weight:600;padding:3px 8px;border-radius:99px;background:#eeece7;color:#6e675e;white-space:nowrap}
-.db-due.late{background:var(--badbg);color:var(--bad)} .db-due.soon{background:var(--warnbg);color:var(--warn)}
-@media (max-width:1180px){ .db-kpis{grid-template-columns:repeat(2,1fr)} .db-row3{grid-template-columns:1fr 1fr} .db-row3>.db-card:last-child{grid-column:1/-1} }
-@media (max-width:760px){ .db-row3{grid-template-columns:1fr} .db-glances{grid-template-columns:repeat(2,1fr);flex-basis:100%} .db-date{display:none} }
+.db-row2{display:grid;grid-template-columns:minmax(0,2fr) minmax(280px,1fr);gap:12px;align-items:start}
+.db-tabs{display:flex;gap:2px;background:var(--paper);border-radius:9px;padding:3px;margin-left:6px}
+.db-tabs button{border:0;background:none;font:inherit;font-size:12.5px;font-weight:600;color:var(--muted);padding:5px 12px;border-radius:7px;cursor:pointer}
+.db-tabs button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(33,26,20,.12)}
+.db-news a{color:inherit;text-decoration:none}
+.db-feat{display:flex;gap:16px;padding:12px 0 14px;border-bottom:1px solid var(--line)}
+.db-feat img{flex:none;width:240px;height:140px;object-fit:cover;border-radius:10px;background:var(--paper)}
+.db-feat h4{font-family:'Sora';font-size:18px;line-height:1.3;letter-spacing:-.2px;margin:4px 0 6px}
+.db-feat p{font-size:13px;color:var(--ink2);line-height:1.5;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin:0}
+.db-feat:hover h4,.db-head:hover .db-ht{color:#c04a12}
+.db-heads{display:grid;grid-template-columns:1fr 1fr;column-gap:22px}
+.db-head{display:block;padding:10px 0;border-bottom:1px solid #f0ede6}
+.db-ht{font-size:13.5px;font-weight:600;line-height:1.38;color:var(--ink);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:3px}
+.db-meta{display:flex;align-items:center;gap:8px}
+.db-src{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#c04a12;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70%}
+.db-doha{overflow:hidden;padding:0}
+.db-doha-top{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;padding:16px 18px;color:#fff;background:linear-gradient(120deg,#e8611f 0%,#7a3210 55%,#1a120d 100%)}
+.db-doha-city{font-family:'Sora';font-weight:700;font-size:15px}
+.db-doha-date{font-size:11.5px;opacity:.85;margin-top:2px}
+.db-clock{font-family:'Sora';font-size:30px;font-weight:700;letter-spacing:-.5px;line-height:1}
+.db-weather{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line);min-height:74px}
+.db-temp{font-family:'Sora';font-size:34px;font-weight:700;letter-spacing:-1px;color:var(--ink)}
+.db-temp small{font-size:15px;color:var(--muted);margin-left:1px;vertical-align:top;position:relative;top:4px}
+.db-wx{font-weight:600;font-size:14px;margin-bottom:3px}
+.db-fx-h{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);padding:12px 18px 4px}
+.db-fx{padding:0 18px 12px}
+.db-fx-r{display:grid;grid-template-columns:42px 1fr auto;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f0ede6}
+.db-fx-r:last-child{border-bottom:0}
+.db-fx-r b{font-size:12.5px}
+.db-cc{font-size:11px;font-weight:700;background:var(--paper);border-radius:6px;padding:3px 0;text-align:center;color:var(--ink2)}
+.db-skel{height:12px;border-radius:6px;margin:10px 0;background:linear-gradient(90deg,#f1ede6 25%,#e8e2d8 50%,#f1ede6 75%);background-size:200% 100%;animation:dbsk 1.2s infinite linear}
+.db-skel.big{height:120px}
+@keyframes dbsk{to{background-position:-200% 0}}
+@media (max-width:1180px){ .db-kpis{grid-template-columns:repeat(2,1fr)} .db-feat img{width:180px;height:112px} }
+@media (max-width:980px){ .db-row2{grid-template-columns:1fr} }
+@media (max-width:760px){ .db-heads{grid-template-columns:1fr} .db-feat{flex-direction:column} .db-feat img{width:100%;height:170px} .db-card-h{flex-wrap:wrap} .db-glances{grid-template-columns:repeat(2,1fr);flex-basis:100%} .db-date{display:none} }
 @media (max-width:480px){ .db-kpi{padding:11px 12px} .db-kpi .db-ic{display:none} .db-kpi .val{font-size:15.5px} .db-kpi .lbl{font-size:9.5px;white-space:normal} .db-kpi .sub{white-space:normal} }
 .db-card-h .tiny{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .dash-row3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
@@ -2277,12 +2298,7 @@ function rDashboard(m){
   const pendingAppr = S.vouchers.filter(v=>v.approvalStatus==='Pending Approval').length;
   const newEnq = enq.filter(e=>e.status==='New').length;
   const today = new Date().toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long', year:'numeric'});
-  const dueCls = d => daysUntil(d)<0 ? 'late' : (daysUntil(d)<=7 ? 'soon' : '');
-  const dueTag = d => '<span class="db-due '+dueCls(d)+'">'+fdate(d)+'</span>';
   const go = (id, html) => can(id,'view') ? '<button class="db-link" data-go="'+id+'">'+html+'</button>' : '';
-  const card = (ic, title, badge, goId, body) =>
-    '<div class="card db-card"><div class="db-card-h"><span class="db-ic">'+ICONS[ic]+'</span><h3>'+title+'</h3>'+badge+
-    '<span style="margin-left:auto">'+go(goId,'View all →')+'</span></div><div class="db-card-b">'+body+'</div></div>';
   const fin = (ic, tone, lbl, val, sub, navId) =>
     '<div class="card db-kpi '+tone+(navId&&can(navId,'view')?' clickable" data-go="'+navId+'" tabindex="0" role="button':'')+'">'+
     '<span class="db-ic lg">'+ICONS[ic]+'</span><div style="min-width:0"><div class="lbl">'+esc(lbl)+'</div>'+
@@ -2310,25 +2326,145 @@ function rDashboard(m){
     '</div>'+
     (shortcuts?'<div class="db-shorts"><span class="db-shorts-l">Quick access</span>'+shortcuts+'</div>':'')+
   '</div>'+
-  '<div class="db-row3">'+
-    card('fu','Follow-ups', '<span class="tiny">'+openFu.length+' open'+(fuOverdue?' · <span class="overdue">'+fuOverdue+' overdue</span>':'')+'</span>', 'followups',
-      '<div class="db-split"><div><span>Receivable</span><b class="num" style="color:var(--ok)">'+money(fuReceivable)+'</b></div>'+
-      '<div><span>Payable</span><b class="num" style="color:var(--bad)">'+money(fuPayable)+'</b></div></div>'+
-      (openFu.slice(0,4).map(f=>'<div class="db-item"><div class="db-item-m"><div class="db-item-t"><b>'+esc(f.party)+'</b> <span class="chip '+(f.kind==='Receivable'?'c-ok':(f.kind==='Payable'?'c-bad':'c-new'))+'">'+esc(f.kind)+'</span></div>'+
-        '<div class="tiny db-clip">'+esc(f.subject)+(f.amount?' · '+money(f.amount):'')+'</div></div>'+dueTag(f.due)+'</div>').join('') || '<div class="empty">Nothing open — nice work.</div>'))+
-    card('rem','Reminders', '<span class="tiny">'+(remOverdue?'<span class="overdue">'+remOverdue+' overdue</span> · ':'')+remSoon+' in 7 days</span>', 'reminders',
-      (openRem.slice(0,5).map(r=>'<div class="db-item"><div class="db-item-m"><div class="db-item-t"><b>'+esc(r.title)+'</b></div>'+
-        '<div class="tiny db-clip">'+(r.amount?money(r.amount)+' · ':'')+esc(r.repeat)+(r.notes?' · '+esc(r.notes):'')+'</div></div>'+dueTag(r.due)+'</div>').join('') || '<div class="empty">No reminders due.</div>'))+
-    card('enq','Recent enquiries', '', 'enquiries',
-      (enq.slice().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5).map(e =>
-        '<div class="db-item"><div class="db-item-m"><div class="db-item-t"><b>'+esc(e.company||e.name)+'</b> '+statusChip(e.status)+'</div>'+
-        '<div class="tiny db-clip">'+esc(e.details)+' · '+fdate(e.date)+'</div></div>'+
-        '<button class="btn sm" data-open-enq="'+e.id+'">Open</button></div>').join('') || '<div class="empty">No enquiries yet</div>'))+
+  '<div class="db-row2">'+
+    '<div class="card db-card db-news"><div class="db-card-h"><span class="db-ic">'+ICONS.enq+'</span><h3>News</h3>'+
+      '<div class="db-tabs">'+NEWS_TABS.map(t=>'<button data-ntab="'+t[0]+'"'+(newsTab===t[0]?' class="on"':'')+'>'+t[1]+'</button>').join('')+'</div>'+
+      '<span class="tiny" id="db-news-at" style="margin-left:auto"></span><button class="db-link" id="db-news-re" title="Refresh">↻</button></div>'+
+      '<div id="db-news-b"></div></div>'+
+    '<div class="card db-doha">'+
+      '<div class="db-doha-top"><div><div class="db-doha-city">Doha, Qatar</div><div class="db-doha-date">'+today+'</div></div><div class="db-clock num" id="db-clock">'+dohaTime()+'</div></div>'+
+      '<div id="db-weather" class="db-weather"><div class="db-skel" style="width:60%"></div><div class="db-skel" style="width:40%"></div></div>'+
+      '<div class="db-fx-h">Exchange rates <span class="tiny" id="db-fx-at"></span></div>'+
+      '<div id="db-fx" class="db-fx"><div class="db-skel"></div><div class="db-skel"></div><div class="db-skel"></div></div>'+
+    '</div>'+
   '</div>';
 
   const ne = $('#d-newenq'); if(ne) ne.onclick = ()=>enquiryForm();
-  $$('[data-open-enq]',m).forEach(b=>b.onclick=()=>{ nav('enquiries'); setTimeout(()=>enquiryDetail(b.dataset.openEnq),50); });
   $$('[data-go]',m).forEach(b=>{ b.onclick = ()=>nav(b.dataset.go); b.onkeydown = e=>{ if(e.key==='Enter') nav(b.dataset.go); }; });
+  $$('[data-ntab]',m).forEach(b=>b.onclick=()=>{ newsTab = b.dataset.ntab; $$('[data-ntab]',m).forEach(x=>x.classList.toggle('on', x===b)); showNews(false); });
+  $('#db-news-re').onclick = ()=>{ showNews(true); showDoha(true); };
+  showNews(false); showDoha(false);
+  clearInterval(window.__dbClock);
+  window.__dbClock = setInterval(()=>{ const c = document.getElementById('db-clock'); if(!c){ clearInterval(window.__dbClock); return; } c.textContent = dohaTime(); }, 15000);
+}
+
+/* ---- Dashboard: live news, Doha weather and exchange rates ----
+   The installed app fetches the fixed sources in feeds.js through
+   app://flame/__feed/<key> (the main process does the download). The web
+   version reads the same news through rss2json and the weather / rates
+   sites directly. Results are kept for a while (and in this computer's
+   storage) so the Dashboard opens instantly and still shows the last
+   headlines when offline. */
+const FEED_URLS = {};
+const NEWS_TABS = [['qatar','Qatar',['qatar','qatar-top']],['world','World',['world-bbc','world-aj']],['business','Business',['business','business-bbc']]];
+const FEED_SOURCE = {'world-bbc':'BBC News','business-bbc':'BBC News','world-aj':'Al Jazeera'};
+let newsTab = 'qatar';
+const dbMem = {};
+function dbStore(k, v){ if(v===undefined){ if(dbMem[k]) return dbMem[k]; try{ return dbMem[k] = JSON.parse(localStorage.getItem('flame.db.'+k)||'null'); }catch(e){ return null; } }
+  dbMem[k] = v; try{ localStorage.setItem('flame.db.'+k, JSON.stringify(v)); }catch(e){} }
+function dohaTime(){ return new Date().toLocaleTimeString('en-GB',{hour:'2-digit', minute:'2-digit', timeZone:'Asia/Qatar'}); }
+function agoText(ms){ const m = Math.round((Date.now()-ms)/60000); if(!(m>=0)) return ''; if(m<1) return 'just now'; if(m<60) return m+' min ago'; const h=Math.round(m/60); if(h<24) return h+' h ago'; const d=Math.round(h/24); return d+' day'+(d>1?'s':'')+' ago'; }
+async function feedGet(key){
+  const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 15000);
+  try{
+    let url;
+    if(location.protocol==='app:') url = '/__feed/'+key;
+    else if(key==='weather' || key==='fx') url = FEED_URLS[key];
+    else url = 'https://api.rss2json.com/v1/api.json?rss_url='+encodeURIComponent(FEED_URLS[key]);
+    const r = await fetch(url, {signal:ctl.signal, cache:'no-store'});
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    return await r.text();
+  } finally { clearTimeout(t); }
+}
+function plainText(html){ try{ return (new DOMParser().parseFromString('<p>'+(html||'')+'</p>','text/html').body.textContent||'').replace(/\s+/g,' ').trim(); }catch(e){ return ''; } }
+function parseFeed(key, text){
+  const okLink = u => /^https?:\/\//i.test(u||'') ? u : '';
+  const out = [];
+  if(/^\s*\{/.test(text)){   // rss2json (web version)
+    const j = JSON.parse(text);
+    (j.items||[]).forEach(it=>out.push({title:it.title, link:okLink(it.link), date:Date.parse(String(it.pubDate||'').replace(' ','T')+'Z'), source:'', desc:/news\.google/.test(FEED_URLS[key]||'')?'':plainText(it.description), img:okLink(it.thumbnail || (it.enclosure&&it.enclosure.link))}));
+  } else {
+    const doc = new DOMParser().parseFromString(text, 'text/xml');
+    doc.querySelectorAll('item').forEach(it=>{
+      const g = n => { const e = it.getElementsByTagName(n)[0]; return e ? e.textContent.trim() : ''; };
+      const media = it.getElementsByTagNameNS('*','thumbnail')[0] || it.getElementsByTagNameNS('*','content')[0];
+      const enc = it.getElementsByTagName('enclosure')[0];
+      const src = it.getElementsByTagName('source')[0];
+      out.push({title:g('title'), link:okLink(g('link')), date:Date.parse(g('pubDate')), source:src?src.textContent.trim():'',
+        desc:src?'':plainText(g('description')), img:okLink((media&&media.getAttribute('url')) || (enc&&/image/.test(enc.getAttribute('type')||'')&&enc.getAttribute('url')))});
+    });
+  }
+  return out.filter(x=>x.title && x.link).map(x=>{
+    // Google News titles end with " - Source"
+    if(x.source && x.title.endsWith(' - '+x.source)) x.title = x.title.slice(0, -(x.source.length+3));
+    if(!x.source && /news\.google/.test(FEED_URLS[key]||'')){ const i = x.title.lastIndexOf(' - '); if(i>0){ x.source = x.title.slice(i+3); x.title = x.title.slice(0,i); } }
+    if(!x.source) x.source = FEED_SOURCE[key] || '';
+    if(!(x.date>0)) x.date = 0;
+    return x;
+  });
+}
+async function loadNews(tab, force){
+  const cached = dbStore('news.'+tab);
+  if(!force && cached && Date.now()-cached.at < 15*60000) return cached;
+  const keys = (NEWS_TABS.find(t=>t[0]===tab)||NEWS_TABS[0])[2];
+  const res = await Promise.allSettled(keys.map(k=>feedGet(k).then(t=>parseFeed(k,t))));
+  const seen = new Set(), items = [];
+  res.forEach(r=>{ if(r.status==='fulfilled') r.value.forEach(x=>{ const k = x.title.toLowerCase().slice(0,80); if(!seen.has(k)){ seen.add(k); items.push(x); } }); });
+  if(!items.length){ if(cached) return Object.assign({}, cached, {stale:true}); throw new Error('no news'); }
+  items.sort((a,b)=>b.date-a.date);
+  const v = {at:Date.now(), items:items.slice(0,13)};
+  dbStore('news.'+tab, v); return v;
+}
+function newsHTML(v){
+  const it = v.items; if(!it.length) return '<div class="empty">No headlines right now.</div>';
+  const fi = Math.max(0, it.slice(0,4).findIndex(x=>x.img));
+  const f = it[fi], rest = it.filter((x,i)=>i!==fi).slice(0,10);
+  const a = (x, inner, cls) => '<a class="'+cls+'" href="'+esc(x.link)+'" target="_blank" rel="noopener noreferrer">'+inner+'</a>';
+  const meta = x => '<span class="db-src">'+esc(x.source||'News')+'</span>'+(x.date?'<span class="tiny">'+agoText(x.date)+'</span>':'');
+  return a(f, (f.img?'<img src="'+esc(f.img)+'" alt="" loading="lazy" referrerpolicy="no-referrer">':'')+
+      '<div><div class="db-meta">'+meta(f)+'</div><h4>'+esc(f.title)+'</h4>'+(f.desc?'<p>'+esc(f.desc)+'</p>':'')+'</div>', 'db-feat'+(f.img?'':' noimg'))+
+    '<div class="db-heads">'+rest.map(x=>a(x, '<div class="db-meta">'+meta(x)+'</div><div class="db-ht">'+esc(x.title)+'</div>', 'db-head')).join('')+'</div>'+
+    (v.stale?'<div class="tiny" style="margin-top:8px">Offline — showing the last saved headlines.</div>':'');
+}
+async function showNews(force){
+  const box = document.getElementById('db-news-b'); if(!box) return;
+  const tab = newsTab, cached = dbStore('news.'+tab);
+  if(cached) box.innerHTML = newsHTML(cached);
+  else box.innerHTML = '<div class="db-skel big"></div>'+'<div class="db-skel"></div>'.repeat(6);
+  const at = document.getElementById('db-news-at');
+  try{
+    const v = await loadNews(tab, force);
+    const b2 = document.getElementById('db-news-b'); if(!b2 || newsTab!==tab) return;
+    b2.innerHTML = newsHTML(v);
+    const at2 = document.getElementById('db-news-at'); if(at2) at2.textContent = v.stale ? 'offline' : 'Updated '+agoText(v.at);
+  }catch(e){
+    const b2 = document.getElementById('db-news-b'); if(!b2 || newsTab!==tab) return;
+    if(!cached) b2.innerHTML = '<div class="empty"><b>News could not load</b>Check the internet connection, then press ↻.</div>';
+    if(at) at.textContent = 'offline';
+  }
+}
+const WX = {0:'Clear sky',1:'Mainly clear',2:'Partly cloudy',3:'Cloudy',45:'Fog',48:'Fog',51:'Light drizzle',53:'Drizzle',55:'Drizzle',61:'Light rain',63:'Rain',65:'Heavy rain',80:'Showers',81:'Showers',82:'Heavy showers',95:'Thunderstorm',96:'Thunderstorm',99:'Thunderstorm'};
+const FX_ROWS = [['USD','US Dollar',0],['EUR','Euro',0],['GBP','British Pound',0],['SAR','Saudi Riyal',0],['AED','UAE Dirham',0],['INR','Indian Rupee',1],['PHP','Philippine Peso',1]];
+async function showDoha(force){
+  const get = async (k, maxAge) => { const c = dbStore(k); if(!force && c && Date.now()-c.at < maxAge) return c;
+    try{ const v = {at:Date.now(), d:JSON.parse(await feedGet(k))}; dbStore(k, v); return v; }catch(e){ if(c) return c; throw e; } };
+  get('weather', 30*60000).then(v=>{
+    const el = document.getElementById('db-weather'); if(!el) return;
+    const c = v.d.current||{}, d = v.d.daily||{};
+    el.innerHTML = '<div class="db-temp num">'+Math.round(c.temperature_2m)+'°<small>C</small></div>'+
+      '<div><div class="db-wx">'+esc(WX[c.weather_code]||'—')+'</div>'+
+      '<div class="tiny">H '+Math.round((d.temperature_2m_max||[])[0])+'° · L '+Math.round((d.temperature_2m_min||[])[0])+'° · Humidity '+Math.round(c.relative_humidity_2m)+'% · Wind '+Math.round(c.wind_speed_10m)+' km/h</div></div>';
+  }).catch(()=>{ const el = document.getElementById('db-weather'); if(el) el.innerHTML = '<div class="tiny">Weather is unavailable offline.</div>'; });
+  get('fx', 6*3600000).then(v=>{
+    const el = document.getElementById('db-fx'); if(!el) return;
+    const r = v.d.rates||{};
+    el.innerHTML = FX_ROWS.filter(x=>r[x[0]]).map(x=>{
+      const val = x[2] ? r[x[0]] : 1/r[x[0]];
+      return '<div class="db-fx-r"><span class="db-cc">'+x[0]+'</span><span class="tiny">'+x[1]+'</span><b class="num">'+
+        (x[2] ? '1 QAR = '+val.toFixed(2)+' '+x[0] : '1 '+x[0]+' = '+val.toFixed(4)+' QAR')+'</b></div>';
+    }).join('');
+    const at = document.getElementById('db-fx-at'); if(at && v.d.time_last_update_unix) at.textContent = '· '+new Date(v.d.time_last_update_unix*1000).toLocaleDateString('en-GB',{day:'numeric',month:'short'});
+  }).catch(()=>{ const el = document.getElementById('db-fx'); if(el) el.innerHTML = '<div class="tiny">Rates are unavailable offline.</div>'; });
 }
 function kpi(lbl, val, sub, cls, navId){
   const clickable = navId ? ' clickable" tabindex="0" role="button" onclick="nav(\''+navId+'\')" onkeydown="if(event.key===\'Enter\')nav(\''+navId+'\')' : '';
