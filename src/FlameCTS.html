@@ -611,6 +611,14 @@ table.tbl tfoot td{font-weight:700;background:#fbfaf7;border-top:2px solid var(-
 table.tbl.grid{border:1px solid #b9b0a0}
 table.tbl.grid th,table.tbl.grid td{border:1px solid #b9b0a0}
 table.tbl.grid tr:last-child td{border-bottom:1px solid #b9b0a0}
+/* Master Code: fixed column widths so every column lines up, one line
+   per row, codes centred, the two buttons side by side. */
+table.tbl.mc-tbl{display:table;table-layout:fixed;width:100%;min-width:900px}
+table.tbl.mc-tbl th{font-size:12.5px;letter-spacing:0;text-transform:none;color:var(--ink);font-weight:700;font-family:'Sora','Inter',sans-serif;padding:8px 10px;white-space:nowrap;line-height:1.2;background:#f6f3ec}
+table.tbl.mc-tbl td{padding:5px 10px;line-height:1.3;font-size:13px;overflow-wrap:anywhere}
+table.tbl.mc-tbl td.num{font-variant-numeric:tabular-nums}
+table.tbl.mc-tbl td.mc-fin,table.tbl.mc-tbl td.mc-act{white-space:nowrap}
+table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
 .tiny{font-size:11.5px;color:var(--muted)}
 .empty{padding:36px;text-align:center;color:var(--muted)}
 .empty b{display:block;color:var(--ink2);margin-bottom:4px;font-family:'Sora'}
@@ -7099,51 +7107,51 @@ function rMasterCode(m){
     (edit?'<button class="btn" id="mc-import">Import by Excel</button>':'')+
     '<button class="btn" id="mc-x">Export Excel</button>'+
     (edit?'<input type="file" id="mc-import-file" accept=".xlsx,.xls,.csv" style="display:none">':''))+
-  '<div class="card"><div class="tbl-wrap clip"><table class="tbl grid heading static" style="table-layout:fixed;width:auto;min-width:0">'+
-    '<colgroup><col style="width:80px"><col style="width:120px"><col style="width:170px"><col style="width:100px"><col style="width:100px"><col style="width:200px"><col style="width:200px">'+(edit?'<col style="width:170px">':'')+'</colgroup>'+
+  '<div class="card"><div class="tbl-wrap"><table class="tbl grid static mc-tbl">'+
+    '<colgroup><col style="width:5%"><col style="width:10%"><col style="width:15%"><col style="width:9%"><col style="width:8%"><col style="width:19%"><col style="width:21%">'+(edit?'<col style="width:13%">':'')+'</colgroup>'+
+    '<thead><tr>'+['SL','Financial','Main Category','Main Code','Sub Code','Main Code Name','Sub Code Name'].concat(edit?['Actions']:[]).map((h,i)=>'<th'+([0,3,4,7].includes(i)?' class="c"':'')+'>'+h+'</th>').join('')+'</tr></thead>'+
     '<tbody id="mc-body"></tbody>'+
   '</table></div></div>';
-  const ph = m.querySelector('.page-head'); if(ph) ph.style.marginBottom = '4px';
+  const ph = m.querySelector('.page-head'); if(ph) ph.style.marginBottom = '10px';
   m.style.paddingTop = '0';
 
   function draw(){
     const groups = S.masterCodes.filter(g=>g.catNo || g.financial || g.category).slice().sort((a,b)=>(a.code||'').localeCompare(b.code||'', undefined, {numeric:true}));
-    const heads = ['SL','Financial','Main Category','Main Code','Sub Code','Main Code Name','Sub Code Name'];
-    let rows = '<tr class="row">'+heads.map(h=>'<td style="font-weight:700;font-family:Sora,Inter,sans-serif;text-align:center">'+h+'</td>').join('')+(edit?'<td style="font-weight:700;font-family:Sora,Inter,sans-serif;text-align:center">Actions</td>':'')+'</tr>';
+    let rows = '';
     groups.forEach(g=>{
       const subs = (g.subs||[]).slice().sort((a,b)=>(a.code||'').localeCompare(b.code||'', undefined, {numeric:true}));
       const hasName = !!(g.name && g.name.trim());
-      const slCell = '<td class="num">'+esc(g.catNo||'')+'</td>';
-      const finCell = '<td>'+esc(g.financial||'')+'</td>';
+      const slCell = '<td class="c num">'+esc(g.catNo||'')+'</td>';
+      const finCell = '<td class="mc-fin">'+esc(g.financial||'')+'</td>';
       const catCell = '<td>'+esc(g.category||'')+'</td>';
       if(hasName){
         rows += '<tr class="row">'+
           slCell+finCell+catCell+
-          '<td class="num">'+esc(g.code)+'</td>'+
+          '<td class="c num">'+esc(g.code)+'</td>'+
           '<td></td>'+
           '<td>'+esc(g.name)+'</td>'+
           '<td></td>'+
-          (edit?'<td class="r"><button class="btn sm" data-edit-main="'+g.id+'">Edit</button> <button class="btn sm danger" data-del-main="'+g.id+'">Delete</button></td>':'')+
+          (edit?'<td class="c mc-act"><button class="btn sm" data-edit-main="'+g.id+'">Edit</button> <button class="btn sm danger" data-del-main="'+g.id+'">Delete</button></td>':'')+
         '</tr>';
       }
       subs.forEach(s=>{
         rows += '<tr class="row">'+
           slCell+finCell+catCell+
-          '<td class="num">'+esc(g.code)+'</td>'+
-          '<td class="num">'+esc(s.code)+'</td>'+
+          '<td class="c num">'+esc(g.code)+'</td>'+
+          '<td class="c num">'+esc(s.code)+'</td>'+
           '<td>'+esc(g.name||'')+'</td>'+
           '<td>'+esc(s.name)+'</td>'+
-          (edit?'<td class="r"><button class="btn sm" data-edit-sub="'+g.id+'|'+s.id+'">Edit</button> <button class="btn sm danger" data-del-sub="'+g.id+'|'+s.id+'">Delete</button></td>':'')+
+          (edit?'<td class="c mc-act"><button class="btn sm" data-edit-sub="'+g.id+'|'+s.id+'">Edit</button> <button class="btn sm danger" data-del-sub="'+g.id+'|'+s.id+'">Delete</button></td>':'')+
         '</tr>';
       });
       if(!hasName && !subs.length){
         rows += '<tr class="row">'+
           slCell+finCell+catCell+
-          '<td class="num">'+esc(g.code)+'</td>'+
+          '<td class="c num">'+esc(g.code)+'</td>'+
           '<td></td>'+
           '<td></td>'+
           '<td></td>'+
-          (edit?'<td class="r"><button class="btn sm" data-edit-main="'+g.id+'">Edit</button> <button class="btn sm danger" data-del-main="'+g.id+'">Delete</button></td>':'')+
+          (edit?'<td class="c mc-act"><button class="btn sm" data-edit-main="'+g.id+'">Edit</button> <button class="btn sm danger" data-del-main="'+g.id+'">Delete</button></td>':'')+
         '</tr>';
       }
     });
