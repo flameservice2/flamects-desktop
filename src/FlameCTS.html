@@ -535,26 +535,31 @@ a{color:var(--fl2)}
 .card.pad{padding:18px}
 .grid{display:grid;gap:14px}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-bottom:16px}
-.gl-kpis{grid-template-columns:repeat(3,minmax(112px,150px));gap:10px;justify-content:flex-end;margin-bottom:4px}
+.gl-kpis{display:flex;flex-wrap:wrap;justify-content:flex-end}
 .dash-sec{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:18px 0 8px}
 .dash-sec:first-of-type{margin-top:0}
 .dash-kpis{grid-template-columns:repeat(auto-fit,minmax(160px,210px))}
+.dash-kpis{gap:10px;margin-bottom:12px}
+.dash-kpis .kpi{padding:9px 14px 8px}
+.dash-kpis .kpi .val{font-size:18px;margin-top:1px}
+.dash-kpis .kpi .sub{font-size:11px;margin-top:1px}
 .dash-row3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 @media (max-width:920px){ .dash-row3{grid-template-columns:1fr} }
 .sticky-bar{position:sticky;top:0;z-index:10}
 @media (max-width:920px){ .sticky-bar{top:54px} }
-.gl-kpis .kpi{padding:8px 12px 7px;text-align:right}
+/* Compact totals boxes (Total debit / Total credit / Balanced ...) on the
+   accounting pages: label and count share the top line, the amount sits
+   under them, so each box is about half the old height and the row lines
+   up with the page title instead of pushing it down. */
+.gl-kpis{gap:8px;margin-bottom:0}
+.gl-kpis .kpi{min-width:118px;padding:5px 10px 4px;display:grid;grid-template-columns:auto auto;justify-content:end;align-items:baseline;column-gap:5px;white-space:nowrap}
 .gl-kpis .kpi::before{height:2px}
-.gl-kpis .kpi .lbl{font-size:9.5px}
-.gl-kpis .kpi .val{font-size:15px;margin-top:2px;letter-spacing:-.2px}
-.gl-kpis .kpi .sub{font-size:10px;margin-top:1px}
-@media (max-width:640px){ .gl-kpis{grid-template-columns:repeat(3,1fr);justify-content:stretch;margin-right:0} }
-/* P&L Summary has 4 KPI cards (Revenue, Direct+GA expense, Gross profit,
-   Net profit) — gl-kpis' 3-column grid would wrap Net profit onto its own
-   row, away from Gross profit. pss-kpis widens the grid to 4 columns so
-   Gross profit and Net profit sit side by side. */
-.pss-kpis{grid-template-columns:repeat(4,minmax(112px,150px))}
-@media (max-width:640px){ .pss-kpis{grid-template-columns:repeat(2,1fr)} }
+.gl-kpis .kpi .lbl{grid-row:1;font-size:9px;letter-spacing:.08em}
+.gl-kpis .kpi .sub{grid-row:1;font-size:9.5px;margin-top:0}
+.gl-kpis .kpi .sub:not(:empty)::before{content:"· "}
+.gl-kpis .kpi .val{grid-row:2;grid-column:1/-1;text-align:right;font-size:14.5px;margin-top:1px;letter-spacing:-.2px;line-height:1.2}
+.page-head:has(.gl-kpis){align-items:center;margin-top:8px;margin-bottom:6px}
+@media (max-width:640px){ .gl-kpis{justify-content:stretch} .gl-kpis .kpi{flex:1 1 30%;min-width:0;grid-template-columns:auto} .gl-kpis .kpi .sub{display:none} .gl-kpis .kpi .lbl{overflow:hidden;text-overflow:ellipsis} .pss-kpis .kpi{flex-basis:45%} }
 .kpi{position:relative;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px 12px;box-shadow:var(--sh);overflow:hidden}
 .kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;background:var(--ember)}
 .kpi .lbl{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
