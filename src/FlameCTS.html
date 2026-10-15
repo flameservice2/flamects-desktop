@@ -3529,8 +3529,8 @@ function rFuel(m){
    TIME SHEET (Business) -- one sheet per vehicle per half month
    (01-15, or 16-end). Each day's row is kept in S.timesheets (one entry
    per vehicle + date), the same list the Equipment card's time sheet
-   log uses. Petrol Date and KM fill in from Petrol Tracking when that
-   vehicle has a fill-up on the day, and can be typed over.
+   log uses. Start Time, Driver Name, Petrol Date and KM are left blank
+   (with the signature columns) to be filled in by hand on the printout.
    ===================================================================== */
 let tsFilter = {eq:'', month:'', half:'1'};
 // Company band used as the footer on printed quotations/invoices/vouchers.
@@ -3563,15 +3563,7 @@ function tsPeriod(month, half){
 function tsEntry(eqId, date){ return S.timesheets.find(t=>t.equipmentId===eqId && t.date===date); }
 function tsRow(eq, date){
   const t = tsEntry(eq.id, date) || {};
-  const f = S.fuelLogs.filter(x=>x.equipmentId===eq.id && x.date===date).sort((a,b)=>(b.km||0)-(a.km||0))[0];
-  return {
-    site: t.site || '',
-    start: t.timeIn || '',
-    supervisor: t.supervisor || '',
-    driver: ('driver' in t) ? (t.driver || '') : fuelDefaultDriver(eq),
-    petrolDate: ('petrolDate' in t) ? (t.petrolDate || '') : (f ? date : ''),
-    km: ('km' in t) ? t.km : ((f && f.km) ? f.km : '')
-  };
+  return { site: t.site || '', supervisor: t.supervisor || '' };
 }
 function tsVehicles(){
   // Vehicles with a regular driver first, then the rest of the fleet.
@@ -3604,10 +3596,10 @@ function rTimeSheet(m){
         '<td class="ts-sign"></td>'+
         '<td>'+inp('supervisor','text',r.supervisor)+'</td>'+
         '<td class="ts-sign"></td>'+
-        '<td>'+inp('driver','text',r.driver)+'</td>'+
         '<td class="ts-sign"></td>'+
         '<td class="ts-sign"></td>'+
-        '<td>'+inp('km','number',r.km)+'</td></tr>';
+        '<td class="ts-sign"></td>'+
+        '<td class="ts-sign"></td></tr>';
     }).join('')+
     '</tbody></table></div>'+
   '</div>')+
@@ -3622,11 +3614,10 @@ function rTimeSheet(m){
     const d = x.dataset.d, k = x.dataset.k, v = x.value.trim();
     let t = tsEntry(eq.id, d);
     if(!t){
-      t = {id:uid('ts'), equipmentId:eq.id, date:d, driver:fuelDefaultDriver(eq), timeIn:'', timeOut:'', hours:0, notes:''};
+      t = {id:uid('ts'), equipmentId:eq.id, date:d, timeIn:'', timeOut:'', hours:0, notes:''};
       S.timesheets.push(t);
     }
-    t[k] = k==='km' ? (v==='' ? '' : Number(v)) : v;
-    if(k==='timeIn') t.hours = tsHours(t.timeIn, t.timeOut);
+    t[k] = v;
     save();
   });
 }
@@ -3634,8 +3625,8 @@ function printTimeSheet(eq, month, half){
   const rows = tsDays(month, half).map(d=>{
     const r = tsRow(eq, d);
     return '<tr><td>'+fdate(d)+'</td><td>'+tsDayName(d)+'</td><td class="l">'+esc(r.site)+'</td><td></td>'+
-      '<td class="l">'+esc(r.supervisor)+'</td><td></td><td class="l">'+esc(r.driver)+'</td><td></td>'+
-      '<td></td><td>'+(r.km===''||r.km==null?'':fmt0(r.km))+'</td></tr>';
+      '<td class="l">'+esc(r.supervisor)+'</td><td></td><td></td><td></td>'+
+      '<td></td><td></td></tr>';
   }).join('');
   const prevTitle = document.title;
   document.title = '';
