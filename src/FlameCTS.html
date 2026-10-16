@@ -2429,7 +2429,7 @@ function rDashboard(m){
     const raw = Math.max(1, ...revM, ...expM), step = Math.pow(10, Math.floor(Math.log10(raw/4)));
     const nice = [1,2,2.5,5,10].map(k=>k*step).find(k=>k*4>=raw) || step*10, top = nice*4;
     const y = v => T + ih - (v/top)*ih, gw = iw/6, bw = Math.min(26, (gw-18)/2);
-    const k = v => v>=1e6 ? (v/1e6).toFixed(1).replace(/\.0$/,'')+'M' : v>=1e3 ? (v/1e3).toFixed(0)+'k' : String(Math.round(v));
+    const k = v => v>=1e6 ? (v/1e6).toFixed(1).replace(/\.0$/,'')+'M' : v>=1e3 ? (v/1e3).toFixed(1).replace(/\.0$/,'')+'k' : String(Math.round(v));
     const bar = (x, v, c) => { const yy = y(v), hh = T+ih-yy; if(hh<0.5) return ''; const r = Math.min(4, hh, bw/2);
       return '<path d="M'+x+','+(T+ih)+' V'+(yy+r)+' Q'+x+','+yy+' '+(x+r)+','+yy+' H'+(x+bw-r)+' Q'+(x+bw)+','+yy+' '+(x+bw)+','+(yy+r)+' V'+(T+ih)+' Z" fill="'+c+'"/>'; };
     let g = '';
@@ -6299,10 +6299,10 @@ function voucherRows(list, fallbackDc, canEdit){
     // list column displays.
     const listAmount = v.set1 ? v.set1.amount : v.amount;
     let ledgerNote;
-    if(txn) ledgerNote = ' · Ledger: '+esc(txn.ref);
-    else if(approvalStatus==='Pending Approval') ledgerNote = ' · awaiting approval — not yet in the Ledger';
-    else if(approvalStatus==='Rejected') ledgerNote = '<span class="overdue"> · rejected — not posted</span>';
-    else ledgerNote = '<span class="overdue"> · not linked to ledger</span>';
+    if(txn) ledgerNote = 'Ledger: '+esc(txn.ref);
+    else if(approvalStatus==='Pending Approval') ledgerNote = 'not in the Ledger yet';
+    else if(approvalStatus==='Rejected') ledgerNote = '<span class="overdue">rejected — not posted</span>';
+    else ledgerNote = '<span class="overdue">not linked to ledger</span>';
     const madeBy = v.createdByName ? ' · by '+esc(v.createdByName) : '';
     // Approve/Reject only ever show for a Super Admin who did NOT create
     // this voucher -- maker/checker means whoever raised it can never be
@@ -6310,8 +6310,10 @@ function voucherRows(list, fallbackDc, canEdit){
     const canDecide = approvalStatus==='Pending Approval' && cu && cu.role==='Super Admin' && (!v.createdById || cu.id!==v.createdById);
     const waitingNote = (approvalStatus==='Pending Approval' && cu && v.createdById && cu.id===v.createdById)
       ? ' <span class="tiny" style="color:var(--muted);white-space:nowrap">Awaiting '+esc(otherSuperAdmins(cu.id).map(a=>a.name).join(' / ')||'another Super Admin')+'’s approval</span>' : '';
-    return '<tr class="row">'+codeCells(cc)+'<td><b>'+esc(v.no)+'</b><div class="tiny">'+fdate(v.date)+'</div></td>'+
-    '<td>'+esc(v.party)+'<div class="tiny">'+esc(v.desc||'')+ledgerNote+madeBy+'</div></td>'+
+    return '<tr class="row">'+codeCells(cc)+'<td style="white-space:nowrap"><b>'+esc(v.no)+'</b><div class="tiny">'+fdate(v.date)+'</div></td>'+
+    // Narration (v.desc) is left off the list so each voucher stays one
+    // compact row; it shows on the voucher's View screen.
+    '<td>'+esc(v.party)+'<div class="tiny">'+ledgerNote+madeBy+'</div></td>'+
     '<td class="r num">'+fmt(listAmount)+'</td><td>'+esc(v.method)+'</td>'+
     '<td>'+statusChip(approvalStatus)+'</td>'+
     '<td style="white-space:nowrap"><button class="btn sm" data-view="'+v.id+'">View</button> <button class="btn sm" data-pr="'+v.id+'">Print</button>'+
@@ -6383,7 +6385,7 @@ function rReceipts(m){
   '</div>'+
   '<div id="v-list"></div>';
   const list = S.vouchers.filter(v=>v.kind==='RV');
-  $('#v-list').innerHTML = tbl([{t:'Main Code',cls:'code'},{t:'Sub Code',cls:'code'},'Receipt No','Party / narration',{t:'Amount ('+CUR+')',r:1},'Mode','Approval',''],
+  $('#v-list').innerHTML = tbl([{t:'Main Code',cls:'code'},{t:'Sub Code',cls:'code'},'Receipt No','Party',{t:'Amount ('+CUR+')',r:1},'Mode','Approval',''],
     voucherRows(list,'C',edit) || emptyRow(8, 'Create receipt vouchers for money coming in.'), null, {maxHeight:'65vh'});
   const rv=$('#v-rv'); if(rv) rv.onclick=()=>voucherForm('RV');
   $('#rv-seal').onchange = e=>{ rvPrintOpts.seal = e.target.checked; };
@@ -6422,7 +6424,7 @@ function rPayments(m){
   '</div>'+
   '<div id="v-list"></div>';
   const list = S.vouchers.filter(v=>v.kind==='PV');
-  $('#v-list').innerHTML = tbl([{t:'Main Code',cls:'code'},{t:'Sub Code',cls:'code'},'Payment No','Party / narration',{t:'Amount ('+CUR+')',r:1},'Mode','Approval',''],
+  $('#v-list').innerHTML = tbl([{t:'Main Code',cls:'code'},{t:'Sub Code',cls:'code'},'Payment No','Party',{t:'Amount ('+CUR+')',r:1},'Mode','Approval',''],
     voucherRows(list,'D',edit) || emptyRow(8, 'Create payment vouchers for money going out.'), null, {maxHeight:'65vh'});
   const pv=$('#v-pv'); if(pv) pv.onclick=()=>voucherForm('PV');
   $('#pv-seal').onchange = e=>{ pvPrintOpts.seal = e.target.checked; };
@@ -6454,7 +6456,7 @@ function rPendingApproval(m){
     .sort((a,b)=>b.date.localeCompare(a.date) || b.no.localeCompare(a.no));
   m.innerHTML = pageHead('Print','Pending Approval')+
   '<div id="pa-list"></div>';
-  $('#pa-list').innerHTML = tbl([{t:'Main Code',cls:'code'},{t:'Sub Code',cls:'code'},'Kind','Voucher No','Party / narration',{t:'Amount ('+CUR+')',r:1},'Mode',''],
+  $('#pa-list').innerHTML = tbl([{t:'Main Code',cls:'code'},{t:'Sub Code',cls:'code'},'Kind','Voucher No','Party',{t:'Amount ('+CUR+')',r:1},'Mode',''],
     pendingApprovalRows(list) || emptyRow(8,'Nothing is waiting on approval right now.'), null, {maxHeight:'65vh'});
   $$('#pa-list [data-view]').forEach(x=>x.onclick=()=>viewVoucher(S.vouchers.find(v=>v.id===x.dataset.view)));
   $$('#pa-list [data-pr]').forEach(x=>x.onclick=()=>{
@@ -6482,8 +6484,8 @@ function pendingApprovalRows(list){
       ? ' <span class="tiny" style="color:var(--muted);white-space:nowrap">Awaiting '+esc(otherSuperAdmins(cu.id).map(a=>a.name).join(' / ')||'another Super Admin')+'’s approval</span>' : '';
     return '<tr class="row">'+codeCells(cc)+
     '<td>'+(v.kind==='RV'?'Receipt':'Payment')+'</td>'+
-    '<td><b>'+esc(v.no)+'</b><div class="tiny">'+fdate(v.date)+'</div></td>'+
-    '<td>'+esc(v.party)+'<div class="tiny">'+esc(v.desc||'')+madeBy+'</div></td>'+
+    '<td style="white-space:nowrap"><b>'+esc(v.no)+'</b><div class="tiny">'+fdate(v.date)+'</div></td>'+
+    '<td>'+esc(v.party)+(madeBy?'<div class="tiny">'+madeBy.replace(/^ · /,'')+'</div>':'')+'</td>'+
     '<td class="r num">'+fmt(listAmount)+'</td><td>'+esc(v.method)+'</td>'+
     '<td style="white-space:nowrap"><button class="btn sm" data-view="'+v.id+'">View</button> <button class="btn sm" data-pr="'+v.id+'">Print</button>'+
     (canDecide?' <button class="btn sm fire" data-appr="'+v.id+'">Approve</button> <button class="btn sm danger" data-rej="'+v.id+'">Reject</button>':'')+
