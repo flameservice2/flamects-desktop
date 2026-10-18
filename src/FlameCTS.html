@@ -2365,10 +2365,15 @@ function render(){
 /* ---------------- DASHBOARD ---------------- */
 function rDashboard(m){
   const enq = S.enquiries, bks = S.bookings;
-  const rentalIncome = S.transactions.filter(t=>t.dc==='C' && t.category==='Rental Income').reduce((a,t)=>a+t.amount,0);
-  const expenses = S.transactions.filter(t=>t.dc==='D' && t.category!=='Asset Purchase' && t.book==='Main').reduce((a,t)=>a+t.amount,0);
+  // Revenue and expenses come from the Profit & Loss figures (Master Code
+  // accounts), so the cards match the P&L page. Matching on the old
+  // category text ('Rental Income') missed entries posted by vouchers and
+  // invoices, which carry their Master Code category instead.
+  const plAll = plPeriodSummary('', '');
+  const rentalIncome = plAll.revenue;
+  const expenses = plAll.directOpEx + plAll.gaEx;
   const outstanding = bks.filter(b=>b.status!=='Cancelled').reduce((a,b)=>a + Math.max(0, b.amount + (b.fees||0) - bookingPaid(b.id)), 0);
-  const netProfit = plPeriodSummary('', '').netProfit;
+  const netProfit = plAll.netProfit;
 
   // Follow-ups summary
   const openFu = S.followups.filter(f=>f.status!=='Done' && !f.deleted).sort((a,b)=>a.due.localeCompare(b.due));
@@ -2393,9 +2398,10 @@ function rDashboard(m){
   const months = []; { const d = new Date(); d.setDate(1); for(let i=5;i>=0;i--){ const x = new Date(d.getFullYear(), d.getMonth()-i, 1); months.push(x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')); } }
   const mEnd = mo => { const [y,mm] = mo.split('-').map(Number); return mo+'-'+String(new Date(y, mm, 0).getDate()).padStart(2,'0'); };
   const mName = mo => new Date(mo+'-01T00:00:00').toLocaleDateString('en-GB',{month:'short'});
-  const revM = months.map(mo=>S.transactions.filter(t=>t.dc==='C' && t.category==='Rental Income' && String(t.date||'').startsWith(mo)).reduce((a,t)=>a+t.amount,0));
-  const expM = months.map(mo=>S.transactions.filter(t=>t.dc==='D' && t.category!=='Asset Purchase' && t.book==='Main' && String(t.date||'').startsWith(mo)).reduce((a,t)=>a+t.amount,0));
-  const netM = months.map(mo=>plPeriodSummary(mo+'-01', mEnd(mo)).netProfit);
+  const plM = months.map(mo=>plPeriodSummary(mo+'-01', mEnd(mo)));
+  const revM = plM.map(p=>p.revenue);
+  const expM = plM.map(p=>p.directOpEx + p.gaEx);
+  const netM = plM.map(p=>p.netProfit);
   const billed = bks.filter(b=>b.status!=='Cancelled').reduce((a,b)=>a + b.amount + (b.fees||0), 0);
   const collectedPct = billed>0 ? Math.max(0, Math.min(100, Math.round((billed-outstanding)/billed*100))) : 100;
 
@@ -2462,7 +2468,7 @@ function rDashboard(m){
   '</section>'+
   '<div class="dx-kpis">'+
     kpiCard('dark '+(netProfit>=0?'pos':'neg'), 'stat', 'Net Profit / (Loss)', netProfit, '<div class="dx-kpi-f">'+delta(netM, true)+spark(netM, netProfit>=0?'#5fd3a0':'#ff8a7a', 'sp-n')+'</div>', 'placcount')+
-    kpiCard('rev', 'rcpt', 'Revenue received', rentalIncome, '<div class="dx-kpi-f">'+delta(revM, true)+spark(revM, '#e8611f', 'sp-r')+'</div>')+
+    kpiCard('rev', 'rcpt', 'Revenue', rentalIncome, '<div class="dx-kpi-f">'+delta(revM, true)+spark(revM, '#e8611f', 'sp-r')+'</div>')+
     kpiCard('exp', 'pay', 'Expenses (operating)', expenses, '<div class="dx-kpi-f">'+delta(expM, false)+spark(expM, '#2f6f9f', 'sp-e')+'</div>')+
     kpiCard('out'+(outstanding>0?' due':''), 'inv', 'Outstanding', outstanding,
       '<div class="dx-kpi-f col"><div class="dx-prog"><i style="width:'+collectedPct+'%"></i></div><span class="dx-delta">'+collectedPct+'% of billed amount collected</span></div>')+
@@ -5081,7 +5087,10 @@ function chequeDetailsHTML(label, suffix, tx){
 // category, Main Code Name and Sub code name auto-fill from Master Code
 // the moment an account is picked). Returns nothing; just attaches
 // listeners to the DOM elements for this suffix.
-function wireTxnSetBox(suffix, mcGroups){
+// opts.autoSub maps a Main code to the Sub code picked for it automatically
+// (e.g. 11000 Bank Accounts -> 111001 Doha Bank on Payment vouchers); the
+// person can still change the Sub code afterwards.
+function wireTxnSetBox(suffix, mcGroups, opts){
   const mcSel = $('#t-mc'+suffix), mcatEl = $('#t-mcat'+suffix), mcnEl = $('#t-mcn'+suffix), scSel = $('#t-sc'+suffix), scnEl = $('#t-scn'+suffix);
   if(!mcSel) return;
   mcSel.addEventListener('change', function(){
@@ -5090,7 +5099,9 @@ function wireTxnSetBox(suffix, mcGroups){
     if(mcnEl) mcnEl.value = g ? (g.name||'') : '';
     const subs = g ? (g.subs||[]).slice().sort((a,b)=>(a.code||'').localeCompare(b.code||'', undefined, {numeric:true})) : [];
     scSel.innerHTML = '<option value="">— none (post to main code) —</option>'+subs.map(s=>'<option value="'+s.id+'">'+esc(s.code)+(s.name?' — '+esc(s.name):'')+'</option>').join('');
-    if(scnEl) scnEl.value = '';
+    const auto = g && opts && opts.autoSub && opts.autoSub[g.code] ? subs.find(s=>s.code===opts.autoSub[g.code]) : null;
+    if(auto) scSel.value = auto.id;
+    if(scnEl) scnEl.value = auto ? (auto.name||'') : '';
   });
   scSel.addEventListener('change', function(){
     const g = mcGroups.find(x=>x.id===mcSel.value);
@@ -6932,7 +6943,9 @@ function voucherForm(kind, pickedInvId){
     const vfBody = vfModal.querySelector('.modal-b');
     if(vfBody) vfBody.style.maxHeight = 'calc(100vh - 110px)';
   }
-  wireTxnSetBox('', mcGroups); wireTxnSetBox('2', mcGroups);
+  // Payment vouchers: choosing 11000 Bank Accounts fills in 111001 Doha Bank.
+  const setOpts = isRV ? null : {autoSub:{'11000':'111001'}};
+  wireTxnSetBox('', mcGroups, setOpts); wireTxnSetBox('2', mcGroups, setOpts);
   if(isRV){
     const pb = $('#w-pick-inv'); if(pb) pb.onclick=()=>pickInvoiceModal(invId=>voucherForm(kind, invId));
     const cb = $('#w-pick-clear'); if(cb) cb.onclick=()=>voucherForm(kind);
