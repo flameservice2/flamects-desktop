@@ -6959,6 +6959,11 @@ function voucherForm(kind, pickedInvId){
 // printed copy shows (party, amount, method, being, booking/invoice link,
 // seal/sign flags) plus its Set 1 / Set 2 account classification and which
 // General Ledger entries it's linked to, without opening the print dialog.
+function voucherDebitAmount(v){
+  const sets = [v.set1, v.set2].filter(Boolean), dr = sets.filter(x=>x.dc==='D');
+  if(dr.length) return round2(dr.reduce((a,x)=>a+(Number(x.amount)||0),0));
+  return v.set1 ? v.set1.amount : v.amount;
+}
 function viewVoucher(v){
   if(!v){ toast('That voucher could not be found.', true); return; }
   const mcGroups = S.masterCodes.filter(g=>g.catNo || g.financial || g.category).slice()
@@ -6978,7 +6983,10 @@ function viewVoucher(v){
     kv('Voucher No.', esc(v.no)),
     kv('Date', fdate(v.date)),
     kv(v.kind==='RV'?'Received from':'Paid to', esc(v.party)),
-    kv('Amount ('+CUR+')', fmt(v.amount)),
+    // Top Amount is the Debit side only (Set 1 / Set 2 marked Dr), not the
+    // Set 1 + Set 2 total in v.amount, which counts a Credit Set 2 twice.
+    // Older vouchers with no Dr-marked Set fall back to Set 1, then v.amount.
+    kv('Amount ('+CUR+')', fmt(voucherDebitAmount(v))),
     kv('Mode of payment', esc(v.method)),
     kv('General Ledger', (txn?esc(txn.ref):(v.approvalStatus==='Pending Approval'?'<span class="overdue">pending approval</span>':v.approvalStatus==='Rejected'?'<span class="overdue">rejected — not posted</span>':'<span class="overdue">not linked</span>'))+(txn2?', '+esc(txn2.ref):'')+(invTxn?', '+esc(invTxn.ref):'')+(invTxn2?', '+esc(invTxn2.ref):''))
   ];
