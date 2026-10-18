@@ -543,6 +543,8 @@ a{color:var(--fl2)}
 .dash-kpis .kpi{padding:9px 14px 8px}
 .dash-kpis .kpi .val{font-size:18px;margin-top:1px}
 .dash-kpis .kpi .sub{font-size:11px;margin-top:1px}
+.lc-sec{border:1px solid var(--line);border-radius:10px;padding:8px 12px;margin-bottom:8px}
+.lc-sec summary{cursor:pointer;display:flex;align-items:center;gap:8px}
 /* ---- Dashboard (dx) ---- */
 .dx{display:flex;flex-direction:column;gap:14px;margin-top:14px}
 .dx-anim>*{animation:dxUp .6s cubic-bezier(.2,.7,.2,1) both}
@@ -2363,17 +2365,23 @@ function render(){
 }
 
 /* ---------------- DASHBOARD ---------------- */
+// The four Dashboard headline figures, taken from the same reports they
+// summarise so every card ties back to a page you can open:
+//  - Revenue, Expenses, Net Profit: Profit & Loss Account (all time).
+//  - Outstanding: Receivable Aging (every invoice not yet Completed).
+// ledgerCheck() recomputes these independently from the General Ledger.
+function dashboardFigures(){
+  const pl = plPeriodSummary('', '');
+  const invTotal = v => (v.items||[]).reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
+  const outstanding = receivableAgingRows(todayISO()).reduce((a,r)=>a+r.amount,0);
+  const billed = S.invoices.reduce((a,v)=>a+invTotal(v),0);
+  return {revenue:pl.revenue, expenses:pl.directOpEx+pl.gaEx, otherIncome:pl.otherIncome, netProfit:pl.netProfit,
+    outstanding, billed, collected:Math.max(0, billed-outstanding)};
+}
 function rDashboard(m){
   const enq = S.enquiries, bks = S.bookings;
-  // Revenue and expenses come from the Profit & Loss figures (Master Code
-  // accounts), so the cards match the P&L page. Matching on the old
-  // category text ('Rental Income') missed entries posted by vouchers and
-  // invoices, which carry their Master Code category instead.
-  const plAll = plPeriodSummary('', '');
-  const rentalIncome = plAll.revenue;
-  const expenses = plAll.directOpEx + plAll.gaEx;
-  const outstanding = bks.filter(b=>b.status!=='Cancelled').reduce((a,b)=>a + Math.max(0, b.amount + (b.fees||0) - bookingPaid(b.id)), 0);
-  const netProfit = plAll.netProfit;
+  const fig = dashboardFigures();
+  const rentalIncome = fig.revenue, expenses = fig.expenses, outstanding = fig.outstanding, netProfit = fig.netProfit;
 
   // Follow-ups summary
   const openFu = S.followups.filter(f=>f.status!=='Done' && !f.deleted).sort((a,b)=>a.due.localeCompare(b.due));
@@ -2402,15 +2410,12 @@ function rDashboard(m){
   const revM = plM.map(p=>p.revenue);
   const expM = plM.map(p=>p.directOpEx + p.gaEx);
   const netM = plM.map(p=>p.netProfit);
-  const billed = bks.filter(b=>b.status!=='Cancelled').reduce((a,b)=>a + b.amount + (b.fees||0), 0);
-  const collectedPct = billed>0 ? Math.max(0, Math.min(100, Math.round((billed-outstanding)/billed*100))) : 100;
+  const collectedPct = fig.billed>0 ? Math.max(0, Math.min(100, Math.round(fig.collected/fig.billed*100))) : 100;
 
-  const delta = (arr, goodUp) => {
-    const cur = arr[arr.length-1], prev = arr[arr.length-2];
-    if(!prev) return '<span class="dx-delta">'+mName(months[5])+' so far</span>';
-    const pct = Math.round((cur-prev)/Math.abs(prev)*100), up = pct>=0;
-    return '<span class="dx-delta '+((up===goodUp)?'up':'down')+'">'+(up?'▲':'▼')+' '+Math.abs(pct)+'% <i>vs '+mName(months[4])+'</i></span>';
-  };
+  // Every headline card is the all-time total up to today, so each one is
+  // labelled with today's date (Doha time) rather than a month comparison.
+  const asOn = new Date().toLocaleDateString('en-GB',{day:'numeric', month:'short', year:'numeric', timeZone:'Asia/Qatar'});
+  const delta = () => '<span class="dx-delta"><i>As on</i> '+asOn+'</span>';
   const spark = (arr, color, id) => {
     const w = 120, h = 36, max = Math.max(...arr), min = Math.min(0, ...arr), rng = (max-min) || 1;
     const pts = arr.map((v,i)=>[i*(w/(arr.length-1)), h-3-((v-min)/rng)*(h-8)]);
@@ -2468,10 +2473,10 @@ function rDashboard(m){
   '</section>'+
   '<div class="dx-kpis">'+
     kpiCard('dark '+(netProfit>=0?'pos':'neg'), 'stat', 'Net Profit / (Loss)', netProfit, '<div class="dx-kpi-f">'+delta(netM, true)+spark(netM, netProfit>=0?'#5fd3a0':'#ff8a7a', 'sp-n')+'</div>', 'placcount')+
-    kpiCard('rev', 'rcpt', 'Revenue', rentalIncome, '<div class="dx-kpi-f">'+delta(revM, true)+spark(revM, '#e8611f', 'sp-r')+'</div>')+
-    kpiCard('exp', 'pay', 'Expenses (operating)', expenses, '<div class="dx-kpi-f">'+delta(expM, false)+spark(expM, '#2f6f9f', 'sp-e')+'</div>')+
+    kpiCard('rev', 'rcpt', 'Revenue', rentalIncome, '<div class="dx-kpi-f">'+delta(revM, true)+spark(revM, '#e8611f', 'sp-r')+'</div>', 'placcount')+
+    kpiCard('exp', 'pay', 'Expenses (operating)', expenses, '<div class="dx-kpi-f">'+delta(expM, false)+spark(expM, '#2f6f9f', 'sp-e')+'</div>', 'placcount')+
     kpiCard('out'+(outstanding>0?' due':''), 'inv', 'Outstanding', outstanding,
-      '<div class="dx-kpi-f col"><div class="dx-prog"><i style="width:'+collectedPct+'%"></i></div><span class="dx-delta">'+collectedPct+'% of billed amount collected</span></div>')+
+      '<div class="dx-kpi-f col"><div class="dx-prog"><i style="width:'+collectedPct+'%"></i></div><span class="dx-delta"><i>As on</i> '+asOn+' · '+collectedPct+'% collected</span></div>', 'arcostcentre')+
   '</div>'+
   '<div class="dx-row">'+
     '<div class="card dx-card dx-perf"><div class="dx-card-h"><div><h3>Revenue vs expenses</h3><div class="tiny">Last six months · hover a month for details</div></div>'+
@@ -4223,12 +4228,110 @@ function pairArrangeLedger(L){
   leftovers.forEach(t=>groups.push([t]));
   return groups;
 }
+/* ---------------- LEDGER CHECK ----------------
+   Recomputes the Dashboard figures straight from the General Ledger (each
+   Main-book entry's Master Code category), compares them with what the
+   Dashboard shows, and lists ledger entries that need a look. Read-only:
+   it never changes any data. Opened from General Ledger -> "Check ledger". */
+function ledgerCheck(){
+  const main = S.transactions.filter(t=>t.book==='Main');
+  const groupByCode = code => S.masterCodes.find(g=>g.code===code);
+  const acct = t => { const cc = ledgerCodePair(t); const g = groupByCode(cc[0]); return {code:cc.join('-').replace(/-$/,''), g}; };
+  const invTotal = v => (v.items||[]).reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
+  // Independent totals from the ledger.
+  let rev=0, exp=0, oth=0, dr=0, cr=0;
+  main.forEach(t=>{
+    const a = Number(t.amount)||0, g = acct(t).g;
+    if(t.dc==='D') dr+=a; else cr+=a;
+    if(!g || g.financial!=='P&L') return;
+    if(g.category==='Revenu') rev += t.dc==='C'? a : -a;
+    else if(g.category==='Income (non business)') oth += t.dc==='C'? a : -a;
+    else if(g.category==='Direct Operating Expense' || g.category==='GA Expense') exp += t.dc==='D'? a : -a;
+  });
+  const pendingInv = S.invoices.filter(v=>v.status!=='Completed');
+  const outLedger = pendingInv.reduce((a,v)=>a+invTotal(v),0);
+  const fig = dashboardFigures();
+  const near = (a,b)=>Math.abs(round2(a)-round2(b))<0.005;
+  const cards = [
+    {name:'Net Profit / (Loss)', dash:fig.netProfit, check:rev-exp+oth, src:'Ledger: revenue − operating expenses + other income'},
+    {name:'Revenue', dash:fig.revenue, check:rev, src:'Ledger: credits − debits on Revenue accounts'},
+    {name:'Expenses (operating)', dash:fig.expenses, check:exp, src:'Ledger: debits − credits on Direct Operating and G&A expense accounts'},
+    {name:'Outstanding', dash:fig.outstanding, check:outLedger, src:'Invoices not yet Completed ('+pendingInv.length+')'}
+  ].map(c=>Object.assign(c, {ok:near(c.dash, c.check)}));
+
+  const row = t => ({id:t.id, ref:t.ref, date:t.date, desc:t.desc||'', dc:t.dc, amount:Number(t.amount)||0, acct:acct(t).code});
+  const issues = [];
+  const add = (title, hint, rows) => issues.push({title, hint, rows});
+  add('Entries with no Master Code', 'Posted using an old category name instead of a Master Code account. They are counted under the account shown; pick the right Main/Sub Code to be sure.',
+    main.filter(t=>!t.mainCodeId).map(row));
+  add('Entries whose Master Code was deleted', 'The account these were posted to no longer exists in Master Code, so reports fall back to a default account.',
+    main.filter(t=>t.mainCodeId && !S.masterCodes.find(g=>g.id===t.mainCodeId)).map(row));
+  add('Entries in Suspense or Miscellaneous accounts', 'Usually a sign the entry needs a proper account (19001 Suspense, 71010 Misc. Expense, 63000 Misc. Income).',
+    main.filter(t=>['19001','71010','63000'].includes(ledgerCodePair(t)[0])).map(row));
+  add('Entries with zero or invalid amounts', 'An amount of 0, a negative amount or a non-number.',
+    S.transactions.filter(t=>!(Number(t.amount)>0)).map(row));
+  const refCount = {}; S.transactions.forEach(t=>{ refCount[t.ref]=(refCount[t.ref]||0)+1; });
+  add('Repeated TXN numbers', 'Two or more entries share the same TXN reference.',
+    S.transactions.filter(t=>refCount[t.ref]>1).map(row));
+  const sig = t => [t.book, t.date, t.dc, round2(t.amount), ledgerCodePair(t).join('-'), String(t.desc||'').trim().toLowerCase()].join('|');
+  const sigCount = {}; S.transactions.forEach(t=>{ const k=sig(t); sigCount[k]=(sigCount[k]||0)+1; });
+  add('Possible duplicate entries', 'Same date, amount, Dr/Cr, account and description. Check that each was really meant to be entered twice.',
+    S.transactions.filter(t=>sigCount[sig(t)]>1).map(row));
+  const txnIds = new Set(S.transactions.map(t=>t.id));
+  const vRows = [];
+  S.vouchers.forEach(v=>{
+    if((v.approvalStatus||'Approved')!=='Approved') return;
+    const want = [['txnId','Set 1'],['txnId2','Set 2']].filter(([k,lbl])=>(lbl==='Set 1'? (v.set1||!v.set2) : v.set2));
+    want.forEach(([k,lbl])=>{ if(!v[k] || !txnIds.has(v[k])) vRows.push({ref:v.no, date:v.date, desc:v.party+' — '+lbl+' not in the ledger', dc:'', amount:lbl==='Set 2'&&v.set2?v.set2.amount:(v.set1?v.set1.amount:v.amount), acct:''}); });
+  });
+  add('Approved vouchers missing from the ledger', 'The voucher is approved but its ledger entry is gone. Use "Fix link" on the Receipt or Payment page.', vRows);
+  const vNos = new Set(S.vouchers.map(v=>v.no));
+  add('Ledger entries from a deleted voucher', 'These entries say they came from a voucher that no longer exists.',
+    S.transactions.filter(t=>t.voucherNo && !vNos.has(t.voucherNo)).map(row));
+  const invRows = [];
+  S.invoices.forEach(v=>{
+    const rvs = S.vouchers.filter(x=>x.kind==='RV' && x.invoiceId===v.id && (x.approvalStatus||'Approved')==='Approved');
+    if(v.status==='Completed' && !rvs.length) invRows.push({ref:v.no, date:v.date, desc:v.customer+' — Completed but no approved receipt voucher', dc:'', amount:invTotal(v), acct:''});
+    if(v.status!=='Completed' && rvs.length) invRows.push({ref:v.no, date:v.date, desc:v.customer+' — still Pending but receipt '+rvs.map(x=>x.no).join(', ')+' is approved', dc:'', amount:invTotal(v), acct:''});
+  });
+  add('Invoice status does not match receipts', 'Outstanding counts every invoice that is not Completed.', invRows);
+  return {cards, issues, totals:{debit:round2(dr), credit:round2(cr), diff:round2(dr-cr), entries:main.length}};
+}
+function showLedgerCheck(){
+  const r = ledgerCheck();
+  const edit = can('ledger','edit');
+  const tick = ok => ok ? '<span class="chip c-ok">✓ Matches</span>' : '<span class="chip c-bad">✗ Differs</span>';
+  const cardsHTML = tbl(['Dashboard card',{t:'Dashboard ('+CUR+')',r:1},{t:'Rechecked ('+CUR+')',r:1},'Rechecked from',''],
+    r.cards.map(c=>'<tr class="row"><td><b>'+esc(c.name)+'</b></td><td class="r num">'+fmt(c.dash)+'</td><td class="r num">'+fmt(c.check)+'</td><td class="tiny">'+esc(c.src)+'</td><td>'+tick(c.ok)+'</td></tr>').join(''), null, {});
+  const t = r.totals;
+  const balHTML = '<div class="stat-line"><span>Total debits ('+t.entries+' Main-book entries)</span><b class="num">'+money(t.debit)+'</b></div>'+
+    '<div class="stat-line"><span>Total credits</span><b class="num">'+money(t.credit)+'</b></div>'+
+    '<div class="stat-line total"><span>Difference'+(t.diff?' (entries without an opposite side)':'')+'</span><b class="num"'+(t.diff?' style="color:var(--bad)"':'')+'>'+money(t.diff)+'</b></div>';
+  const found = r.issues.filter(i=>i.rows.length);
+  const issuesHTML = found.length ? found.map(i=>
+    '<details class="lc-sec"><summary><b>'+esc(i.title)+'</b> <span class="chip c-bad">'+i.rows.length+'</span></summary><p class="tiny" style="margin:6px 0">'+esc(i.hint)+'</p>'+
+    tbl(['Ref','Date','Description','Account','Dr/Cr',{t:'Amount ('+CUR+')',r:1}],
+      i.rows.slice(0,200).map(x=>'<tr class="row"'+(edit&&x.id?' data-lctx="'+x.id+'" style="cursor:pointer" title="Open this entry"':'')+'><td class="num">'+esc(x.ref||'')+'</td><td class="num">'+(x.date?fdate(x.date):'')+'</td><td>'+esc(x.desc)+'</td><td class="num code">'+esc(x.acct||'')+'</td><td>'+(x.dc==='D'?'Dr':x.dc==='C'?'Cr':'')+'</td><td class="r num">'+fmt(x.amount)+'</td></tr>').join(''), null, {maxHeight:'40vh'})+
+    (i.rows.length>200?'<p class="tiny">Showing the first 200 of '+i.rows.length+'.</p>':'')+'</details>').join('')
+    : '<p class="tiny">No problems found in the ledger entries.</p>';
+  modal('Ledger check',
+    '<h3 style="font-size:14px;margin:0 0 6px">Dashboard figures, rechecked from the General Ledger</h3>'+cardsHTML+
+    '<h3 style="font-size:14px;margin:16px 0 6px">Debits and credits</h3>'+balHTML+
+    '<h3 style="font-size:14px;margin:16px 0 6px">Entries to review</h3>'+issuesHTML+
+    '<p class="tiny" style="margin-top:10px;color:var(--muted)">This check only reads your data; nothing is changed.</p>',
+    {saveLabel:null, huge:true});
+  if(edit) $$('#modal-root [data-lctx]').forEach(x=>x.onclick=()=>{
+    const tx = S.transactions.find(y=>y.id===x.dataset.lctx); if(!tx) return;
+    $('#modal-root').classList.remove('open'); txnForm(tx);
+  });
+}
 function rLedger(m){
   const edit = can('ledger','edit');
   m.innerHTML = pageHead('Accounting','General Ledger', '<div id="gl-totals"></div>')+
   '<div class="filters" style="margin-bottom:8px">'+
     (edit?'<button class="btn" id="gl-import">Import Excel</button>':'')+
     '<button class="btn" id="gl-x">Export Excel</button><button class="btn" id="gl-p">Export PDF</button>'+
+    '<button class="btn" id="gl-check" title="Recheck Dashboard figures and look for ledger entries that need attention">Check ledger</button>'+
     (edit?'<input type="file" id="gl-import-file" accept=".xlsx,.xls,.csv" style="display:none">':'')+
   '</div>'+
   '<div class="filters">'+
@@ -4350,6 +4453,7 @@ function rLedger(m){
   };
   $('#gl-x').onclick=()=>exportXLSX('Flame_General_Ledger.xlsx',[{name:'Ledger',rows:[['Date','Main Code','Main Code Name','Main Category','Sub Code','Sub Code Name','Category','Debit','Credit','Net','Ref','Particulars','Type','Method','Status','Booking'],
     ...list().map(t=>{ const cc=ledgerCodePair(t); const {g,s}=mainSubFor(cc); return [t.date,cc[0],g?g.name||'':'',g?g.category||'':'',cc[1],s?s.name||'':'',t.category,t.dc==='D'?t.amount:'',t.dc==='C'?t.amount:'',(t.dc==='C'?t.amount:0)-(t.dc==='D'?t.amount:0),t.ref,t.desc,t.type,t.method,t.status,bkRef(t.bookingId)||'']; })]}]);
+  $('#gl-check').onclick=()=>showLedgerCheck();
   $('#gl-p').onclick=()=>{ const L=list();
     exportPDF('General Ledger',['Date','Main Code','Main Code Name','Main Category','Sub Code','Sub Code Name','Category','Debit','Credit','Net'],
     L.map(t=>{ const cc=ledgerCodePair(t); const {g,s}=mainSubFor(cc); const n=(t.dc==='C'?t.amount:0)-(t.dc==='D'?t.amount:0);
