@@ -927,6 +927,7 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
   #print-area{display:block!important;font-size:12.5px;color:#111}
   .doc{max-width:190mm;margin:0 auto;padding:6mm 0}
   .doc.landscape{max-width:281mm;padding:2mm 0}
+  .doc.qtnp{max-width:none;padding:0}
   .doc-head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #d9331f;padding-bottom:12px;margin-bottom:16px}
   .doc-head img{width:58px;height:58px}
   .doc-head h1{font-size:20px;margin:0}
@@ -2255,14 +2256,51 @@ function exportPDF(title, cols, rows, foot, attachSeal){
 function sealCheckboxHTML(id, checked){
   return '<label class="tiny" style="display:flex;align-items:center;gap:6px;white-space:nowrap"><input type="checkbox" id="'+id+'" style="width:auto"'+(checked?' checked':'')+'> Attach company seal when printed</label>';
 }
-function printDoc(html, landscape){
+function printDoc(html, landscape, opts){
   $('#print-area').innerHTML = html;
   let sty = $('#print-orientation');
   if(landscape){
     if(!sty){ sty = document.createElement('style'); sty.id = 'print-orientation'; document.head.appendChild(sty); }
     sty.textContent = '@page{size:landscape;margin:8mm}';
+  } else if(opts && opts.onePage){
+    if(!sty){ sty = document.createElement('style'); sty.id = 'print-orientation'; document.head.appendChild(sty); }
+    sty.textContent = '@page{size:A4 portrait;margin:'+ONE_PAGE_MARGIN_MM+'mm}';
   } else if(sty){ sty.remove(); }
-  setTimeout(()=>window.print(), 60);
+  if(opts && opts.onePage) fitPrintToOnePage().then(()=>setTimeout(()=>window.print(), 60));
+  else setTimeout(()=>window.print(), 60);
+}
+// Shrinks a portrait document just enough that it prints on one A4 page,
+// header to footer. The print styles only apply while printing, so the
+// document is laid out in a hidden frame with those styles switched on,
+// measured, and #print-area .doc is zoomed down if it is taller than the
+// page. Short documents are left at full size.
+const ONE_PAGE_MARGIN_MM = 8;
+async function fitPrintToOnePage(){
+  const doc = $('#print-area .doc'); if(!doc) return;
+  doc.style.zoom = '';
+  const mm = v => v*96/25.4;
+  const css = [...document.querySelectorAll('style')].map(x=>x.textContent).join('\n').replace(/@media\s+print/g,'@media all');
+  const links = [...document.querySelectorAll('link[rel="stylesheet"]')].map(l=>'<link rel="stylesheet" href="'+l.href+'">').join('');
+  const f = document.createElement('iframe');
+  f.setAttribute('aria-hidden','true');
+  f.style.cssText = 'position:fixed;left:-10000px;top:0;width:'+(210-2*ONE_PAGE_MARGIN_MM)+'mm;height:50px;border:0;visibility:hidden';
+  document.body.appendChild(f);
+  try{
+    const d = f.contentDocument;
+    d.open(); d.write('<!doctype html><html><head><base href="'+location.href+'">'+links+'<style>'+css+'</style></head><body style="margin:0"><div id="print-area">'+$('#print-area').innerHTML+'</div></body></html>'); d.close();
+    await Promise.all([...d.images].map(i=>i.decode ? i.decode().catch(()=>{}) : null));
+    if(d.fonts && d.fonts.ready) await d.fonts.ready;
+    const el = d.querySelector('.doc'); if(!el) return;
+    const avail = mm(297-2*ONE_PAGE_MARGIN_MM) - 6;
+    const heightAt = z => { el.style.zoom = String(z); return el.getBoundingClientRect().height; };
+    if(heightAt(1) <= avail) return;
+    // Zooming out also widens the text lines (fewer wraps), so height does
+    // not shrink in proportion -- search for the largest zoom that fits.
+    let lo = 0.3, hi = 1;
+    for(let i=0;i<10;i++){ const mid = (lo+hi)/2; if(heightAt(mid) <= avail) lo = mid; else hi = mid; }
+    doc.style.zoom = String(Math.floor(lo*1000)/1000);
+  }catch(e){ /* measuring failed -- print at full size */ }
+  finally{ f.remove(); }
 }
 function docHead(kind, no, date, extra){
   return '<div class="doc-head"><img src="'+LOGO+'" alt="">'+
@@ -6341,7 +6379,7 @@ function printQuotation(q){
   const tot = q.items.reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
   const cr = S.meta.crNo || '—', cl = S.meta.clNo || '—';
   const SLOGAN = 'Powering Trade · Building the Future';
-  printDoc('<div class="doc">'+
+  printDoc('<div class="doc qtnp">'+
     '<div class="app-header" style="margin-bottom:16px">'+
       '<div class="app-header-body"><div class="app-header-name">'+esc(S.meta.company)+'</div>'+
       '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:13px;font-weight:600;color:#fff">'+SLOGAN+'</div>'+
@@ -6367,7 +6405,6 @@ function printQuotation(q){
         '<li>The approved timesheet shall also be signed at the end of each working day.</li>'+
         '<li>Payment must be made within 15 days from the date of invoice submission.</li>'+
         '<li>The vehicle shall be used strictly for the intended work purpose at the site and shall not be used for any other activity.</li>'+
-        '<li>The Road Supporting Vehicle should be operated only on authorized roads.</li>'+
         '<li>Any repair cost arising due to misuse, negligence, or improper handling of the vehicle shall be compensated by the consumer.</li>'+
         '<li>The maximum permitted vehicle usage is 80 kilometres per 24 hours. Any additional kilometres beyond this limit will be charged at QAR 0.50 per kilometre.</li>'+
       '</ul>'+
@@ -6382,7 +6419,7 @@ function printQuotation(q){
         '&nbsp;&nbsp;·&nbsp;&nbsp;<b>Web:</b> <a href="https://www.flamects.com" style="color:inherit;text-decoration:none">www.flamects.com</a></div></div>'+
       '<img class="app-header-logo-img" style="width:82px;height:82px" src="'+LOGO+'" alt="">'+
     '</div>'+
-    '</div>');
+    '</div>', false, {onePage:true});
 }
 /* ---------------- RECEIPTS & PAYMENTS (formerly combined Vouchers) ---------------- */
 function voucherRows(list, fallbackDc, canEdit){
