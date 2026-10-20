@@ -6301,8 +6301,8 @@ function drawQuotationList(host, isSample){
   const rows = list.slice().sort((a,b)=>isSample ? (a.no||'').localeCompare(b.no||'', undefined, {numeric:true}) : b.date.localeCompare(a.date)).map(q=>{
     const tot = q.items.reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
     return '<tr class="row"><td>'+(isSample?'<b>'+esc(sampleTitle(q))+'</b><div class="tiny">'+esc(q.no)+'</div>':'<b>'+esc(q.no)+'</b><div class="tiny">'+fdate(q.date)+'</div>')+'</td>'+
-    '<td>'+esc(q.company||'—')+(q.attn?'<div class="tiny">Attn: '+esc(q.attn)+'</div>':'')+'</td>'+
-    (isSample?'':'<td class="num">'+fdate(q.validUntil)+'</td>')+'<td class="r num">'+fmt(tot)+'</td>'+
+    (isSample?'':'<td>'+esc(q.company||'—')+(q.attn?'<div class="tiny">Attn: '+esc(q.attn)+'</div>':'')+'</td>'+
+      '<td class="num">'+fdate(q.validUntil)+'</td><td class="r num">'+fmt(tot)+'</td>')+
     '<td style="white-space:nowrap">'+
     (isSample&&edit?'<button class="btn sm fire" data-use="'+q.id+'" title="Start a new quotation from this sample">Use</button> ':'')+
     '<button class="btn sm" data-pr="'+q.id+'">Print / PDF</button> '+
@@ -6310,7 +6310,7 @@ function drawQuotationList(host, isSample){
     (!isSample&&edit?'<button class="btn sm" data-tosample="'+q.id+'" title="Keep a copy of this quotation in Sample">Save as sample</button> ':'')+
     (edit?'<button class="btn sm danger" data-del="'+q.id+'">Delete</button>':'')+'</td></tr>'; }).join('');
   host.innerHTML = isSample
-    ? tbl(['Sample','Company',{t:'Total ('+CUR+')',r:1},''], rows || emptyRow(4,'Create a sample quotation, or use "Save as sample" on a previous one, to reuse its items and terms.'))
+    ? tbl(['Sample',''], rows || emptyRow(2,'Create a sample quotation, or use "Save as sample" on a previous one, to reuse its items and terms.'))
     : tbl(['Quotation No','Company','Valid until',{t:'Total ('+CUR+')',r:1},''], rows || emptyRow(5,'Create a quotation to send pricing to a prospective company before it becomes an invoice.'));
   $$('[data-use]',host).forEach(x=>x.onclick=()=>quotationForm(null, '', {prefill:quotationFromSample(S.quotations.find(q=>q.id===x.dataset.use))}));
   $$('[data-tosample]',host).forEach(x=>x.onclick=()=>{
