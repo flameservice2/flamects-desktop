@@ -6349,7 +6349,8 @@ function quotationForm(q, presetCompany, opts){
       '<div><div class="f qtnf" style="margin-bottom:0"><label style="display:flex;align-items:center;gap:7px;text-transform:none;font-size:13px"><input type="checkbox" id="q-seal" style="width:auto"'+(q.attachSeal?' checked':'')+'> Attach company seal when printed</label></div>'+
       '<div class="f qtnf" style="margin-bottom:0;margin-top:6px"><label style="display:flex;align-items:center;gap:7px;text-transform:none;font-size:13px"><input type="checkbox" id="q-sign" style="width:auto"'+(q.attachSign?' checked':'')+'> Attach Stanly Sign when printed</label></div></div>'+
       '<div class="f qtnf"><label>Notes / terms</label><textarea id="q-no" rows="3" placeholder="One point per line — press Enter for a new line">'+esc(q.notes||'')+'</textarea></div>'+
-    '</div>',
+    '</div>'+
+    '<div class="f qtnf"><label>Terms and Conditions <span class="tiny" style="text-transform:none;letter-spacing:normal">· one point per line, printed as a list</span></label><textarea id="q-tc" rows="9" style="font-size:12.5px;line-height:1.45">'+esc(qtnTerms(q).join('\n'))+'</textarea></div>',
     {xwide:true, tall:true, onSave:(mo)=>{
       const co=val({node:mo},'q-co'); if(!co && !isSample){ toast('Company name is required.', true); return false; }
       readItems();
@@ -6374,6 +6375,7 @@ function quotationForm(q, presetCompany, opts){
       const periods = $$('.q-pd',mo).filter(c=>c.checked).map(c=>c.value);
       q.period = periods.length ? periods : ['Day'];
       q.notes=val({node:mo},'q-no');
+      q.terms=(mo.querySelector('#q-tc').value||'').split('\n').map(x=>x.trim()).filter(Boolean);
       q.attachSeal = mo.querySelector('#q-seal').checked;
       q.attachSign = mo.querySelector('#q-sign').checked;
       logAudit(isNew?'Quotation created':'Quotation updated', q.no+' · '+q.company); save(); render();
@@ -6425,6 +6427,24 @@ function quotationForm(q, presetCompany, opts){
   drawItems();
   $('#q-add').onclick=()=>{ readItems(); items.push({desc:'',qty:1,days:1,period:['Day'],rate:0}); drawItems(); };
 }
+// Terms and Conditions printed on a quotation. Each quotation (and each
+// sample) keeps its own editable copy in q.terms; older quotations without
+// one print these defaults.
+const DEFAULT_QTN_TERMS = [
+  "The quoted rate is calculated based on a maximum working period of 10 hours per day. Any work carried out beyond 10 hours per day, including work performed on Fridays or public holidays, will be charged separately on a pro-rata basis.",
+  "Daily contracts will be billed for a minimum of 3 days, weekly contracts for 6 days, monthly for 30/31 days.",
+  "All required site passes, training, safety inductions, and any other site-related approvals will be arranged by 3rd party.",
+  "All vehicle maintenance, service, and related upkeep will be the responsibility of Flame.",
+  "The quoted rates are exclusive of Value Added Tax (VAT). Any applicable taxes or new taxes introduced after the date of this offer, relating to the supply of products or services, shall be borne by the customer.",
+  "The client must inform the mobilization and demobilization dates in advance. A minimum notice period of 3 days is required before mobilization or demobilization.",
+  "Hire charges will be applicable from the date of mobilization until the date of demobilization.",
+  "The approved timesheet shall also be signed at the end of each working day.",
+  "Payment must be made within 15 days from the date of invoice submission.",
+  "The vehicle shall be used strictly for the intended work purpose at the site and shall not be used for any other activity.",
+  "Any repair cost arising due to misuse, negligence, or improper handling of the vehicle shall be compensated by the consumer.",
+  "The maximum permitted vehicle usage is 80 kilometres per 24 hours. Any additional kilometres beyond this limit will be charged at QAR 0.50 per kilometre."
+];
+function qtnTerms(q){ return Array.isArray(q.terms) ? q.terms : DEFAULT_QTN_TERMS; }
 function printQuotation(q){
   const tot = q.items.reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
   const cr = S.meta.crNo || '—', cl = S.meta.clNo || '—';
@@ -6444,20 +6464,7 @@ function printQuotation(q){
     (q.notes?'<div style="margin:18px 0"><p style="font-size:11.5px;white-space:pre-line;margin:0">'+esc(q.notes)+'</p></div>':'')+
     '<div style="margin-top:22px;font-size:10.5px;line-height:1.5">'+
       '<div style="font-weight:700;margin-bottom:6px;font-size:11.5px">Terms and Conditions</div>'+
-      '<ul style="margin:0;padding-left:16px">'+
-        '<li>The quoted rate is calculated based on a maximum working period of 10 hours per day. Any work carried out beyond 10 hours per day, including work performed on Fridays or public holidays, will be charged separately on a pro-rata basis.</li>'+
-        '<li>Daily contracts will be billed for a minimum of 3 days, weekly contracts for 6 days, monthly for 30/31 days.</li>'+
-        '<li>All required site passes, training, safety inductions, and any other site-related approvals will be arranged by 3rd party.</li>'+
-        '<li>All vehicle maintenance, service, and related upkeep will be the responsibility of Flame.</li>'+
-        '<li>The quoted rates are exclusive of Value Added Tax (VAT). Any applicable taxes or new taxes introduced after the date of this offer, relating to the supply of products or services, shall be borne by the customer.</li>'+
-        '<li>The client must inform the mobilization and demobilization dates in advance. A minimum notice period of 3 days is required before mobilization or demobilization.</li>'+
-        '<li>Hire charges will be applicable from the date of mobilization until the date of demobilization.</li>'+
-        '<li>The approved timesheet shall also be signed at the end of each working day.</li>'+
-        '<li>Payment must be made within 15 days from the date of invoice submission.</li>'+
-        '<li>The vehicle shall be used strictly for the intended work purpose at the site and shall not be used for any other activity.</li>'+
-        '<li>Any repair cost arising due to misuse, negligence, or improper handling of the vehicle shall be compensated by the consumer.</li>'+
-        '<li>The maximum permitted vehicle usage is 80 kilometres per 24 hours. Any additional kilometres beyond this limit will be charged at QAR 0.50 per kilometre.</li>'+
-      '</ul>'+
+      '<ul style="margin:0;padding-left:16px">'+qtnTerms(q).map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul>'+
       '<p style="margin:10px 0 0">We trust the above terms meet your approval. Should you require any further clarification or additional information, please feel free to contact us.</p>'+
     '</div>'+
     sigBlock(q.attachSeal, q.attachSign)+
