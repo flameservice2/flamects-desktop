@@ -505,6 +505,8 @@ a{color:var(--fl2)}
 .nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:9px 18px;background:none;border:0;color:#cfc8bd;font-size:14.5px;text-align:left;border-left:3px solid transparent;transition:background .15s}
 .nav-item svg{width:17px;height:17px;flex:none;opacity:.8}
 .nav-item:hover{background:rgba(255,255,255,.06);color:#fff}
+.nav-item.nav-sub{padding:6px 18px 6px 46px;font-size:13.5px;color:#a89f93}
+.nav-item.nav-sub::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.6;margin-left:-14px;margin-right:2px}
 .nav-item.on{color:#fff;background:rgba(238,108,43,.14);border-left:3px solid;border-image:var(--ember) 1}
 .side-user{margin-top:auto;padding:14px 18px;border-top:1px solid rgba(255,255,255,.08);font-size:12.5px}
 .side-user b{color:#fff;display:block}
@@ -2050,6 +2052,8 @@ const NAV = [
   {id:'reminders', t:'Reminders', ic:'rem'},
   {sec:'Print'},
   {id:'quotations', t:'Quotations', ic:'qtn'},
+  {id:'quotations', sub:'sample', t:'Sample'},
+  {id:'quotations', sub:'previous', t:'Previous'},
   {id:'invoices', t:'Invoices', ic:'inv'},
   {id:'receipts', t:'Receipt', ic:'rcpt'},
   {id:'payments', t:'Payment', ic:'pay'},
@@ -2090,9 +2094,14 @@ function buildNav(){
   const u = currentUser(); if(!u) return;
   $('#nav-list').innerHTML = NAV.map(n => n.sec
     ? '<div class="nav-sec">'+esc(n.sec)+'</div>'
-    : (can(n.id,'view') ? '<button class="nav-item'+(PAGE===n.id?' on':'')+'" data-nav="'+n.id+'">'+ICONS[n.ic]+esc(n.t)+'</button>' : '')
+    : !can(n.id,'view') ? ''
+    : n.sub
+      // Sub-sections (e.g. Quotations -> Sample / Previous) open their
+      // parent page on that tab.
+      ? '<button class="nav-item nav-sub'+(PAGE===n.id&&qtTab===n.sub?' on':'')+'" data-nav="'+n.id+'" data-sub="'+n.sub+'">'+esc(n.t)+'</button>'
+      : '<button class="nav-item'+(PAGE===n.id?' on':'')+'" data-nav="'+n.id+'">'+ICONS[n.ic]+esc(n.t)+'</button>'
   ).join('');
-  $$('#nav-list [data-nav]').forEach(b => b.onclick = ()=>nav(b.dataset.nav));
+  $$('#nav-list [data-nav]').forEach(b => b.onclick = ()=>{ if(b.dataset.nav==='quotations') qtTab = b.dataset.sub || 'previous'; nav(b.dataset.nav); });
   $('#side-user').innerHTML = '<b>'+esc(u.name)+'</b><span>'+esc(u.role)+' · '+esc(u.title||'')+'</span>'+
     '<button id="btn-messages">✉ Messages'+(unreadMessageCount()?' <span class="chip c-fire" style="margin-left:4px">'+unreadMessageCount()+'</span>':'')+'</button>'+
     '<button id="btn-logout">Sign out</button>';
@@ -6260,45 +6269,80 @@ function printInvoice(v){
 // readTxnSetBox, which quotations no longer call).
 function rQuotations(m){
   const edit = can('quotations','edit');
+  const isSample = qtTab==='sample';
   m.innerHTML = pageHead('General','Quotations',
-    (edit?'<button class="btn fire" id="qt-new">+ Create quotation</button>':''))+
+    (edit?(isSample?'<button class="btn fire" id="qt-new">+ Create sample</button>':'<button class="btn fire" id="qt-new">+ Create quotation</button>'):''))+
+  '<div class="tabs">'+[['sample','Sample'],['previous','Previous']].map(t=>
+    '<button class="tab'+(qtTab===t[0]?' on':'')+'" data-t="'+t[0]+'">'+t[1]+'</button>').join('')+'</div>'+
   '<div id="qt-body"></div>';
-  const nb=$('#qt-new'); if(nb) nb.onclick=()=>quotationForm();
-  drawQuotationList($('#qt-body'));
+  $$('.tabs .tab',m).forEach(b=>b.onclick=()=>{ qtTab=b.dataset.t; render(); });
+  const nb=$('#qt-new'); if(nb) nb.onclick=()=>isSample ? quotationForm(null, '', {sample:true}) : quotationForm();
+  drawQuotationList($('#qt-body'), isSample);
 }
-function drawQuotationList(host){
+// Quotations has two sections: Sample (ready-made quotations kept as
+// templates -- "Use" starts a new quotation from one) and Previous (every
+// quotation actually issued). A sample is a quotation with sample:true.
+let qtTab = 'previous';
+function quotationFromSample(src, asSample){
+  const copy = JSON.parse(JSON.stringify(src));
+  delete copy.id; delete copy.no; delete copy.sample;
+  copy.date = todayISO(); copy.validUntil = addDaysISO(todayISO(), 5);
+  if(asSample) copy.sample = true;
+  return copy;
+}
+function drawQuotationList(host, isSample){
   const edit = can('quotations','edit');
-  const rows = S.quotations.slice().sort((a,b)=>b.date.localeCompare(a.date)).map(q=>{
+  const list = S.quotations.filter(q=>!!q.sample===!!isSample);
+  const rows = list.slice().sort((a,b)=>isSample ? (a.no||'').localeCompare(b.no||'', undefined, {numeric:true}) : b.date.localeCompare(a.date)).map(q=>{
     const tot = q.items.reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
-    return '<tr class="row"><td><b>'+esc(q.no)+'</b><div class="tiny">'+fdate(q.date)+'</div></td>'+
-    '<td>'+esc(q.company)+(q.attn?'<div class="tiny">Attn: '+esc(q.attn)+'</div>':'')+'</td>'+
-    '<td class="num">'+fdate(q.validUntil)+'</td><td class="r num">'+fmt(tot)+'</td>'+
-    '<td style="white-space:nowrap"><button class="btn sm" data-pr="'+q.id+'">Print / PDF</button> '+
-    (edit?'<button class="btn sm" data-ed="'+q.id+'">Edit</button> <button class="btn sm danger" data-del="'+q.id+'">Delete</button>':'')+'</td></tr>'; }).join('');
-  host.innerHTML = tbl(['Quotation No','Company','Valid until',{t:'Total ('+CUR+')',r:1},''], rows || emptyRow(5,'Create a quotation to send pricing to a prospective company before it becomes an invoice.'));
+    return '<tr class="row"><td><b>'+esc(q.no)+'</b>'+(isSample?'<div class="tiny">'+esc((q.items[0]&&q.items[0].desc)||'')+'</div>':'<div class="tiny">'+fdate(q.date)+'</div>')+'</td>'+
+    '<td>'+esc(q.company||'—')+(q.attn?'<div class="tiny">Attn: '+esc(q.attn)+'</div>':'')+'</td>'+
+    (isSample?'':'<td class="num">'+fdate(q.validUntil)+'</td>')+'<td class="r num">'+fmt(tot)+'</td>'+
+    '<td style="white-space:nowrap">'+
+    (isSample&&edit?'<button class="btn sm fire" data-use="'+q.id+'" title="Start a new quotation from this sample">Use</button> ':'')+
+    '<button class="btn sm" data-pr="'+q.id+'">Print / PDF</button> '+
+    (edit?'<button class="btn sm" data-ed="'+q.id+'">Edit</button> ':'')+
+    (!isSample&&edit?'<button class="btn sm" data-tosample="'+q.id+'" title="Keep a copy of this quotation in Sample">Save as sample</button> ':'')+
+    (edit?'<button class="btn sm danger" data-del="'+q.id+'">Delete</button>':'')+'</td></tr>'; }).join('');
+  host.innerHTML = isSample
+    ? tbl(['Sample No','Company',{t:'Total ('+CUR+')',r:1},''], rows || emptyRow(4,'Create a sample quotation, or use "Save as sample" on a previous one, to reuse its items and terms.'))
+    : tbl(['Quotation No','Company','Valid until',{t:'Total ('+CUR+')',r:1},''], rows || emptyRow(5,'Create a quotation to send pricing to a prospective company before it becomes an invoice.'));
+  $$('[data-use]',host).forEach(x=>x.onclick=()=>quotationForm(null, '', {prefill:quotationFromSample(S.quotations.find(q=>q.id===x.dataset.use))}));
+  $$('[data-tosample]',host).forEach(x=>x.onclick=()=>{
+    const src = S.quotations.find(q=>q.id===x.dataset.tosample); if(!src) return;
+    const smp = quotationFromSample(src, true);
+    S.meta.seq.qsmp = (S.meta.seq.qsmp||0)+1;
+    smp.id = uid('qtn'); smp.no = 'SAMPLE-'+String(S.meta.seq.qsmp).padStart(3,'0');
+    S.quotations.push(smp);
+    logAudit('Quotation sample created', smp.no+' from '+src.no); save(); render();
+    toast(src.no+' saved as sample '+smp.no+'.');
+  });
   $$('[data-ed]',host).forEach(x=>x.onclick=()=>quotationForm(S.quotations.find(q=>q.id===x.dataset.ed)));
   $$('[data-pr]',host).forEach(x=>x.onclick=()=>printQuotation(S.quotations.find(q=>q.id===x.dataset.pr)));
   $$('[data-del]',host).forEach(x=>x.onclick=()=>{
     const q = S.quotations.find(y=>y.id===x.dataset.del);
-    confirmDlg('Delete quotation '+q.no+' for '+q.company+'? This cannot be undone.',()=>{
+    confirmDlg('Delete '+(q.sample?'sample ':'quotation ')+q.no+(q.company?' for '+q.company:'')+'? This cannot be undone.',()=>{
       S.quotations = S.quotations.filter(y=>y.id!==q.id);
       logAudit('Quotation deleted', q.no+' · '+q.company); save(); render();
       toast('Quotation '+q.no+' deleted.');
     });
   });
 }
-function quotationForm(q, presetCompany){
+function quotationForm(q, presetCompany, opts){
+  opts = opts || {};
   const isNew = !q;
-  q = q || {date:todayISO(), validUntil:addDaysISO(todayISO(),5), company:presetCompany||'', attn:'',
+  q = q || opts.prefill || {date:todayISO(), validUntil:addDaysISO(todayISO(),5), company:presetCompany||'', attn:'',
     items:[{desc:'', qty:1, days:1, period:['Day'], rate:0}], period:['Day'], notes:''};
+  if(isNew && opts.sample) q.sample = true;
+  const isSample = !!q.sample;
   const items = q.items.map(i=>Object.assign({},i));
   // Quotations intentionally have no Main/Sub Code (Set 1 / Set 2)
   // classification -- see the header comment above rQuotations(). Do not
   // add txnSetBoxHTML/wireTxnSetBox/readTxnSetBox calls here; that mapping
   // is scoped to Invoices/Receipts/Payments and the General Ledger only.
-  const mm = modal(isNew?'Create quotation':'Edit '+q.no,
+  const mm = modal(isNew?(isSample?'Create sample quotation':'Create quotation'):'Edit '+q.no,
     '<div class="frow3" style="gap:12px"><div class="f qtnf"><label>Date</label><input type="date" id="q-dt" value="'+q.date+'"></div>'+
-    '<div class="f qtnf"><label>Company name *</label><input id="q-co" list="dl-customers" value="'+esc(q.company)+'"></div>'+
+    '<div class="f qtnf"><label>Company name'+(isSample?'':' *')+'</label><input id="q-co" list="dl-customers" value="'+esc(q.company||'')+'"></div>'+
     '<div class="f qtnf"><label>Attention</label><input id="q-at" value="'+esc(q.attn||'')+'"></div></div>'+
     '<div class="f qtnf"><label>Line items</label><div class="tiny" style="display:grid;grid-template-columns:1fr 56px 72px 66px 90px;gap:7px;margin-bottom:3px"><span></span><span>Qty</span><span>Period</span><span>Duration</span><span>Rate</span></div><div id="q-items"></div><button class="btn sm" type="button" id="q-add">+ Add line</button></div>'+
     '<div class="frow" style="gap:12px;align-items:start">'+
@@ -6307,16 +6351,22 @@ function quotationForm(q, presetCompany){
       '<div class="f qtnf"><label>Notes / terms</label><textarea id="q-no" rows="3" placeholder="One point per line — press Enter for a new line">'+esc(q.notes||'')+'</textarea></div>'+
     '</div>',
     {xwide:true, tall:true, onSave:(mo)=>{
-      const co=val({node:mo},'q-co'); if(!co){ toast('Company name is required.', true); return false; }
+      const co=val({node:mo},'q-co'); if(!co && !isSample){ toast('Company name is required.', true); return false; }
       readItems();
       // Keep every line that has a description or a rate -- a description-only
       // line (no rate) is printed as a text line with no figures.
       const ok = items.filter(i=>(i.desc||'').trim() || i.rate>0);
-      if(!ok.some(i=>i.rate>0)){ toast('Add at least one line item with a rate.', true); return false; }
-      if(isNew){
+      // A sample may keep its rates blank (filled in when it is used).
+      if(!isSample && !ok.some(i=>i.rate>0)){ toast('Add at least one line item with a rate.', true); return false; }
+      if(isSample && !ok.length){ toast('Add at least one line item.', true); return false; }
+      if(isNew && isSample){
+        S.meta.seq.qsmp = (S.meta.seq.qsmp||0)+1;
+        q.id=uid('qtn'); q.no='SAMPLE-'+String(S.meta.seq.qsmp).padStart(3,'0'); S.quotations.push(q);
+      } else if(isNew){
         S.meta.seq.qtn++;
         const t = todayISO(); const dd=t.slice(8,10), mo2=t.slice(5,7), yyyy=t.slice(0,4);
         q.id=uid('qtn'); q.no='QTN-'+dd+'-'+mo2+'-'+yyyy+'-'+String(S.meta.seq.qtn).padStart(3,'0'); S.quotations.push(q);
+        qtTab = 'previous';
       }
       q.date=val({node:mo},'q-dt');
       if(isNew) q.validUntil = addDaysISO(q.date||todayISO(), 5); // kept for the Quotations list/exports; no longer user-editable per the Create quotation form
@@ -8220,6 +8270,23 @@ async function boot(){
     if(!S.timesheets) S.timesheets = [];
     if(!S.quotations) S.quotations = [];
     if(S.meta && S.meta.seq && S.meta.seq.qtn===undefined) S.meta.seq.qtn = 1;
+    // Starter sample quotations (Quotations -> Sample), added once. Fixed
+    // ids so two devices adding them at the same time merge into one set,
+    // and the meta flag stops a deleted sample from coming back. Rates are
+    // left at 0 to be filled in; "Use" asks for a rate before saving.
+    if(S.meta && !S.meta.qtnSamplesV1){
+      [['qsmp_rsv','Road Support Vehicle with driver (arrow board & beacon lights)'],
+       ['qsmp_tanker','Water Tanker with driver'],
+       ['qsmp_boom','Boom Truck with operator'],
+       ['qsmp_tma','TMA Vehicle (Truck Mounted Attenuator) with driver']].forEach((x,i)=>{
+        if(S.quotations.find(q=>q.id===x[0])) return;
+        S.quotations.push({id:x[0], no:'SAMPLE-'+String(i+1).padStart(3,'0'), sample:true, date:todayISO(), validUntil:addDaysISO(todayISO(),5),
+          company:'', attn:'', items:[{desc:x[1], qty:1, days:1, period:['Day'], rate:0}], period:['Day'], notes:'', attachSeal:false, attachSign:false});
+      });
+      if(S.meta.seq) S.meta.seq.qsmp = Math.max(S.meta.seq.qsmp||0, 4);
+      S.meta.qtnSamplesV1 = true;
+      save();
+    }
     // Backfill: invoices don't carry their own due date any more -- the due
     // date is always the invoice date (see invoiceForm's onSave, which sets
     // v.due=v.date on every create/edit). Invoices saved before that change
