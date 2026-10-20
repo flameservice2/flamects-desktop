@@ -6306,7 +6306,6 @@ function drawQuotationList(host, isSample){
     '<td style="white-space:nowrap">'+
     (isSample&&edit?'<button class="btn sm fire" data-use="'+q.id+'" title="Start a new quotation from this sample">Use</button> ':'')+
     '<button class="btn sm" data-pr="'+q.id+'">Print / PDF</button> '+
-    '<button class="btn sm" data-share="'+q.id+'" title="Share on WhatsApp or by email">Share</button> '+
     (edit?'<button class="btn sm" data-ed="'+q.id+'">Edit</button> ':'')+
     (!isSample&&edit?'<button class="btn sm" data-tosample="'+q.id+'" title="Keep a copy of this quotation in Sample">Save as sample</button> ':'')+
     (edit?'<button class="btn sm danger" data-del="'+q.id+'">Delete</button>':'')+'</td></tr>'; }).join('');
@@ -6325,7 +6324,6 @@ function drawQuotationList(host, isSample){
   });
   $$('[data-ed]',host).forEach(x=>x.onclick=()=>quotationForm(S.quotations.find(q=>q.id===x.dataset.ed)));
   $$('[data-pr]',host).forEach(x=>x.onclick=()=>printQuotation(S.quotations.find(q=>q.id===x.dataset.pr)));
-  $$('[data-share]',host).forEach(x=>x.onclick=()=>shareQuotation(S.quotations.find(q=>q.id===x.dataset.share)));
   $$('[data-del]',host).forEach(x=>x.onclick=()=>{
     const q = S.quotations.find(y=>y.id===x.dataset.del);
     confirmDlg('Delete '+(q.sample?'sample ':'quotation ')+q.no+(q.company?' for '+q.company:'')+'? This cannot be undone.',()=>{
