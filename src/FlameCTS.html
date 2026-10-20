@@ -6289,15 +6289,18 @@ function quotationFromSample(src, asSample){
   const copy = JSON.parse(JSON.stringify(src));
   delete copy.id; delete copy.no; delete copy.sample;
   copy.date = todayISO(); copy.validUntil = addDaysISO(todayISO(), 5);
-  if(asSample) copy.sample = true;
+  if(asSample) copy.sample = true; else delete copy.title;
   return copy;
 }
+// A sample's heading (shown in the Sample list); editable in its form.
+// Samples without one use their first line item's description.
+function sampleTitle(q){ return (q.title||'').trim() || (q.items[0]&&q.items[0].desc) || q.no; }
 function drawQuotationList(host, isSample){
   const edit = can('quotations','edit');
   const list = S.quotations.filter(q=>!!q.sample===!!isSample);
   const rows = list.slice().sort((a,b)=>isSample ? (a.no||'').localeCompare(b.no||'', undefined, {numeric:true}) : b.date.localeCompare(a.date)).map(q=>{
     const tot = q.items.reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
-    return '<tr class="row"><td><b>'+esc(q.no)+'</b>'+(isSample?'<div class="tiny">'+esc((q.items[0]&&q.items[0].desc)||'')+'</div>':'<div class="tiny">'+fdate(q.date)+'</div>')+'</td>'+
+    return '<tr class="row"><td>'+(isSample?'<b>'+esc(sampleTitle(q))+'</b><div class="tiny">'+esc(q.no)+'</div>':'<b>'+esc(q.no)+'</b><div class="tiny">'+fdate(q.date)+'</div>')+'</td>'+
     '<td>'+esc(q.company||'—')+(q.attn?'<div class="tiny">Attn: '+esc(q.attn)+'</div>':'')+'</td>'+
     (isSample?'':'<td class="num">'+fdate(q.validUntil)+'</td>')+'<td class="r num">'+fmt(tot)+'</td>'+
     '<td style="white-space:nowrap">'+
@@ -6308,7 +6311,7 @@ function drawQuotationList(host, isSample){
     (!isSample&&edit?'<button class="btn sm" data-tosample="'+q.id+'" title="Keep a copy of this quotation in Sample">Save as sample</button> ':'')+
     (edit?'<button class="btn sm danger" data-del="'+q.id+'">Delete</button>':'')+'</td></tr>'; }).join('');
   host.innerHTML = isSample
-    ? tbl(['Sample No','Company',{t:'Total ('+CUR+')',r:1},''], rows || emptyRow(4,'Create a sample quotation, or use "Save as sample" on a previous one, to reuse its items and terms.'))
+    ? tbl(['Sample','Company',{t:'Total ('+CUR+')',r:1},''], rows || emptyRow(4,'Create a sample quotation, or use "Save as sample" on a previous one, to reuse its items and terms.'))
     : tbl(['Quotation No','Company','Valid until',{t:'Total ('+CUR+')',r:1},''], rows || emptyRow(5,'Create a quotation to send pricing to a prospective company before it becomes an invoice.'));
   $$('[data-use]',host).forEach(x=>x.onclick=()=>quotationForm(null, '', {prefill:quotationFromSample(S.quotations.find(q=>q.id===x.dataset.use))}));
   $$('[data-tosample]',host).forEach(x=>x.onclick=()=>{
@@ -6344,7 +6347,8 @@ function quotationForm(q, presetCompany, opts){
   // classification -- see the header comment above rQuotations(). Do not
   // add txnSetBoxHTML/wireTxnSetBox/readTxnSetBox calls here; that mapping
   // is scoped to Invoices/Receipts/Payments and the General Ledger only.
-  const mm = modal(isNew?(isSample?'Create sample quotation':'Create quotation'):'Edit '+q.no,
+  const mm = modal(isNew?(isSample?'Create sample quotation':'Create quotation'):'Edit '+(isSample?'sample '+q.no:q.no),
+    (isSample?'<div class="f qtnf"><label>Sample heading</label><input id="q-ti" placeholder="e.g. Road Support Vehicle" value="'+esc(isNew?(q.title||''):sampleTitle(q))+'"></div>':'')+
     '<div class="frow3" style="gap:12px"><div class="f qtnf"><label>Date</label><input type="date" id="q-dt" value="'+q.date+'"></div>'+
     '<div class="f qtnf"><label>Company name'+(isSample?'':' *')+'</label><input id="q-co" list="dl-customers" value="'+esc(q.company||'')+'"></div>'+
     '<div class="f qtnf"><label>Attention</label><input id="q-at" value="'+esc(q.attn||'')+'"></div></div>'+
@@ -6382,6 +6386,7 @@ function quotationForm(q, presetCompany, opts){
       q.terms=(mo.querySelector('#q-tc').value||'').split('\n').map(x=>x.trim()).filter(Boolean);
       q.attachSeal = mo.querySelector('#q-seal').checked;
       q.attachSign = mo.querySelector('#q-sign').checked;
+      if(isSample) q.title = (mo.querySelector('#q-ti').value||'').trim();
       logAudit(isNew?'Quotation created':'Quotation updated', q.no+' · '+q.company); save(); render();
       toast('Quotation '+q.no+' saved.');
     }});
