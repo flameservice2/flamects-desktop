@@ -1,8 +1,9 @@
-const { app, BrowserWindow, Menu, protocol, net, shell, dialog } = require('electron');
+const { app, BrowserWindow, Menu, protocol, net, shell, dialog, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { handleFeed } = require('./feeds');
+const { registerShareIpc } = require('./desktop-share');
 
 // Serve the page from app://flame/ rather than file:// so it has a real,
 // stable origin: the Supabase login session and offline cache (both kept in
@@ -51,7 +52,7 @@ function start() {
     title: 'Flame Contracting Trading & Service WLL',
     icon: path.join(__dirname, 'build', 'icon.png'),
     backgroundColor: '#1f1915',
-    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true }
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: true, preload: path.join(__dirname, 'preload.js') }
   });
 
   // Website, mail, phone and WhatsApp links open in the user's normal apps.
@@ -62,6 +63,8 @@ function start() {
   win.webContents.on('will-navigate', (e, url) => {
     if (!url.startsWith('app://')) { e.preventDefault(); openOutside(url); }
   });
+
+  registerShareIpc(ipcMain, { app, shell, isTrusted: (wc) => win && wc === win.webContents });
 
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
   win.loadURL('app://flame/index.html');

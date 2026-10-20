@@ -2275,8 +2275,10 @@ function printDoc(html, landscape, opts){
     if(!sty){ sty = document.createElement('style'); sty.id = 'print-orientation'; document.head.appendChild(sty); }
     sty.textContent = '@page{size:A4 portrait;margin:'+ONE_PAGE_MARGIN_MM+'mm}';
   } else if(sty){ sty.remove(); }
-  if(opts && opts.onePage) fitPrintToOnePage().then(()=>setTimeout(()=>window.print(), 60));
-  else setTimeout(()=>window.print(), 60);
+  if(opts && opts.noPrint) return opts.onePage ? fitPrintToOnePage() : Promise.resolve();
+  if(opts && opts.onePage) return fitPrintToOnePage().then(()=>setTimeout(()=>window.print(), 60));
+  setTimeout(()=>window.print(), 60);
+  return Promise.resolve();
 }
 // Shrinks a portrait document just enough that it prints on one A4 page,
 // header to footer. The print styles only apply while printing, so the
@@ -6301,6 +6303,7 @@ function drawQuotationList(host, isSample){
     '<td style="white-space:nowrap">'+
     (isSample&&edit?'<button class="btn sm fire" data-use="'+q.id+'" title="Start a new quotation from this sample">Use</button> ':'')+
     '<button class="btn sm" data-pr="'+q.id+'">Print / PDF</button> '+
+    '<button class="btn sm" data-share="'+q.id+'" title="Share on WhatsApp or by email">Share</button> '+
     (edit?'<button class="btn sm" data-ed="'+q.id+'">Edit</button> ':'')+
     (!isSample&&edit?'<button class="btn sm" data-tosample="'+q.id+'" title="Keep a copy of this quotation in Sample">Save as sample</button> ':'')+
     (edit?'<button class="btn sm danger" data-del="'+q.id+'">Delete</button>':'')+'</td></tr>'; }).join('');
@@ -6319,6 +6322,7 @@ function drawQuotationList(host, isSample){
   });
   $$('[data-ed]',host).forEach(x=>x.onclick=()=>quotationForm(S.quotations.find(q=>q.id===x.dataset.ed)));
   $$('[data-pr]',host).forEach(x=>x.onclick=()=>printQuotation(S.quotations.find(q=>q.id===x.dataset.pr)));
+  $$('[data-share]',host).forEach(x=>x.onclick=()=>shareQuotation(S.quotations.find(q=>q.id===x.dataset.share)));
   $$('[data-del]',host).forEach(x=>x.onclick=()=>{
     const q = S.quotations.find(y=>y.id===x.dataset.del);
     confirmDlg('Delete '+(q.sample?'sample ':'quotation ')+q.no+(q.company?' for '+q.company:'')+'? This cannot be undone.',()=>{
@@ -6445,7 +6449,7 @@ const DEFAULT_QTN_TERMS = [
   "The maximum permitted vehicle usage is 80 kilometres per 24 hours. Any additional kilometres beyond this limit will be charged at QAR 0.50 per kilometre."
 ];
 function qtnTerms(q){ return Array.isArray(q.terms) ? q.terms : DEFAULT_QTN_TERMS; }
-function printQuotation(q){
+function printQuotation(q, opts){
   const tot = q.items.reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
   const cr = S.meta.crNo || '—', cl = S.meta.clNo || '—';
   const SLOGAN = 'Powering Trade · Building the Future';
@@ -6476,7 +6480,66 @@ function printQuotation(q){
         '&nbsp;&nbsp;·&nbsp;&nbsp;<b>Web:</b> <a href="https://www.flamects.com" style="color:inherit;text-decoration:none">www.flamects.com</a></div></div>'+
       '<img class="app-header-logo-img" style="width:82px;height:82px" src="'+LOGO+'" alt="">'+
     '</div>'+
-    '</div>', false, {onePage:true});
+    '</div>', false, {onePage:true, noPrint:!!(opts&&opts.noPrint)});
+}
+// Share a quotation (Sample or Previous) on WhatsApp or by email. In the
+// desktop app the quotation is saved as a PDF in Documents\Flame CTS\
+// Quotations and that folder opens with the file selected, ready to drag
+// into the chat or email; the web version opens the print dialog so it can
+// be saved as PDF. A message with the quotation details is pre-filled.
+const SALES_EMAIL = 'sales@flamects.com';
+function quotationShareText(q){
+  const tot = q.items.reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
+  return 'Dear '+(q.attn||'Sir/Madam')+',\n\n'+
+    'Please find attached our quotation '+q.no+(q.company?' for '+q.company:'')+(tot>0?', total '+CUR+' '+fmt(tot):'')+'.\n'+
+    'Kindly let us know if you need any clarification.\n\n'+
+    'Best regards,\n'+S.meta.company+'\nTel: +974 55400916 / 55400906\n'+SALES_EMAIL;
+}
+async function quotationPdfFile(q){
+  if(!(window.flameDesktop && window.flameDesktop.savePdf)) return null;
+  try{
+    await printQuotation(q, {noPrint:true});
+    return await window.flameDesktop.savePdf(q.no+(q.company?' '+q.company:''));
+  } finally {
+    $('#print-area').innerHTML=''; const sty=$('#print-orientation'); if(sty) sty.remove();
+  }
+}
+function shareQuotation(q){
+  if(!q) return;
+  const contact = q.company ? (S.contacts||[]).find(c=>c.mobile && (c.company||'').trim().toLowerCase()===q.company.trim().toLowerCase()) : null;
+  const desktop = !!(window.flameDesktop && window.flameDesktop.savePdf);
+  const mo = modal('Share '+q.no,
+    '<p class="tiny" style="margin:0 0 12px">'+(desktop
+      ? 'The quotation is saved as a PDF in <b>Documents › Flame CTS › Quotations</b> and that folder opens with the file selected. Drag the PDF into the WhatsApp chat or the email.'
+      : 'The print window opens first: choose <b>Save as PDF</b>, then attach that file in WhatsApp or the email.')+'</p>'+
+    '<div class="frow" style="gap:12px;align-items:end">'+
+      '<div class="f"><label>WhatsApp number (optional)</label><input id="sh-wa" placeholder="e.g. 974 5540 0916" value="'+esc(contact?contact.mobile:'')+'"></div>'+
+      '<div class="f"><button class="btn fire" id="sh-go-wa" style="width:100%">'+WA_ICON+' Share on WhatsApp</button></div>'+
+    '</div>'+
+    '<div class="frow" style="gap:12px;align-items:end">'+
+      '<div class="f"><label>Email to</label><input id="sh-em" value="'+esc(SALES_EMAIL)+'"></div>'+
+      '<div class="f"><button class="btn fire" id="sh-go-em" style="width:100%">✉ Share by email</button></div>'+
+    '</div>',
+    {saveLabel:null});
+  const go = async (kind)=>{
+    const text = quotationShareText(q);
+    let file = null;
+    try{ file = await quotationPdfFile(q); }catch(e){ toast('Could not save the PDF: '+(e&&e.message||e), true); return; }
+    if(!file && !desktop) await printQuotation(q);
+    let url;
+    if(kind==='wa'){
+      const num = val(mo,'sh-wa');
+      url = num ? waLink(num, text) : 'https://wa.me/?text='+encodeURIComponent(text);
+    } else {
+      const to = val(mo,'sh-em') || SALES_EMAIL;
+      url = 'mailto:'+encodeURIComponent(to).replace(/%40/g,'@')+'?subject='+encodeURIComponent('Quotation '+q.no+(q.company?' — '+q.company:''))+'&body='+encodeURIComponent(text);
+    }
+    window.open(url, '_blank');
+    if(file){ window.flameDesktop.showFile(file); toast('PDF saved: '+file.split(/[\\/]/).pop()+'. Drag it into '+(kind==='wa'?'WhatsApp':'the email')+'.'); }
+    logAudit('Quotation shared', q.no+' · '+(kind==='wa'?'WhatsApp':'Email'));
+  };
+  mo.node.querySelector('#sh-go-wa').onclick = ()=>go('wa');
+  mo.node.querySelector('#sh-go-em').onclick = ()=>go('em');
 }
 /* ---------------- RECEIPTS & PAYMENTS (formerly combined Vouchers) ---------------- */
 function voucherRows(list, fallbackDc, canEdit){
