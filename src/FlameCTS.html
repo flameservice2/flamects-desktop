@@ -7424,6 +7424,17 @@ function balanceSheetData(asOf){
       rows.push({main:g.code, sub:s.code, mainName:g.name||'', subName:s.name||'', category, debit:v.debit, credit:v.credit, balance: sign*(v.debit-v.credit)});
     });
   });
+  // Profit or loss not yet closed to Retained Earnings: the net of every
+  // Profit & Loss account up to the same date, shown under Equity so that
+  // Assets = Liabilities + Equity when the ledger itself balances. Once the
+  // year is closed (P&L accounts cleared to Retained Earnings) this is 0.
+  let plDr = 0, plCr = 0;
+  S.transactions.filter(t=>t.book==='Main' && (!asOf || t.date<=asOf)).forEach(t=>{
+    const g = S.masterCodes.find(x=>x.code===ledgerCodePair(t)[0]);
+    if(!g || (g.financial||'')!=='P&L') return;
+    if(t.dc==='D') plDr += Number(t.amount)||0; else plCr += Number(t.amount)||0;
+  });
+  rows.push({main:'', sub:'', mainName:'Current period profit / (loss)', subName:'From Profit & Loss accounts', category:'Equity', debit:plDr, credit:plCr, balance:plCr-plDr, pl:true});
   return rows;
 }
 function rBalanceSheet(m){
@@ -7441,7 +7452,7 @@ function rBalanceSheet(m){
   const sectionTable = (rows, idPrefix)=>{
     const filtered = bsHideZero ? rows.filter(r=>Math.abs(r.balance)>0.005 || r.debit || r.credit) : rows;
     const total = filtered.reduce((a,r)=>a+r.balance,0);
-    const rowsHTML = filtered.map(r=>'<tr class="row" data-view="'+r.main+'|'+r.sub+'|'+r.balance+'" style="cursor:pointer">'+
+    const rowsHTML = filtered.map(r=>'<tr class="row" '+(r.pl?'data-pl="1" title="Open the Profit & Loss Account"':'data-view="'+r.main+'|'+r.sub+'|'+r.balance+'"')+' style="cursor:pointer">'+
       '<td class="num code">'+esc(r.main)+'</td>'+
       '<td>'+esc(r.mainName)+'</td>'+
       '<td class="num code">'+esc(r.sub)+'</td>'+
@@ -7481,8 +7492,9 @@ function rBalanceSheet(m){
       '<div class="stat-line total" style="border-top:0;padding-top:0"><span>'+(balanced?'✓ Books balance':'⚑ Unreconciled difference')+'</span>'+
       '<b class="num" style="color:'+(balanced?'var(--ok)':'var(--bad)')+'">'+(balanced?fmt(0):((diff>=0?'+':'−')+fmt(Math.abs(diff))))+'</b></div>'+
       (balanced?'<div class="tiny">Assets exactly equal liabilities plus equity — nothing unaccounted for.</div>'
-        :'<div class="tiny">A non-zero figure here usually means a transaction was posted to only one side of a Balance Sheet account, or to a Main/Sub Code that isn\'t tagged Assets / Liability / Equity on the Master Code page. Check any accounts listed under Unclassified above.</div>')+
+        :'<div class="tiny">A non-zero figure here usually means a transaction was posted to only one side of a Balance Sheet account, or to a Main/Sub Code that isn\'t tagged Assets / Liability / Equity on the Master Code page. Check any accounts listed under Unclassified above, and use Check ledger on the General Ledger page to find entries posted to one side only.</div>')+
       '</div>';
+    $$('#bs-body [data-pl]').forEach(x=>x.onclick=()=>nav('placcount'));
     $$('#bs-body [data-view]').forEach(x=>x.onclick=()=>{
       const [main,sub,balance] = x.dataset.view.split('|');
       showBreakup(trialBalanceAccountLabel([main,sub]), acctTxns(main, sub, '', bsAsOf), {net:Number(balance), netLabel:'Balance', noScroll:true});
