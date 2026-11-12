@@ -10,6 +10,11 @@ check() {  # label url
   code=$(curl -s -o /dev/null -m 25 -L -A "$ua" -w '%{http_code}' "$2" || true)
   case "$code" in 2*|3*) mark=OK;; 401|403|405) mark=OK-ANSWERS;; *) mark=FAIL; bad=$((bad+1));; esac
   printf '%-10s %s  %s  (%s)\n' "$mark" "$code" "$2" "$1"
+  if [ "$mark" = FAIL ]; then   # why: no address, refused, or too slow?
+    h=$(echo "$2" | cut -d/ -f3)
+    echo "           address: $(getent hosts "$h" | head -1 || true)"
+    curl -s -o /dev/null -m 40 -A "$ua" -w '           retry: %{http_code} after %{time_total}s (connect %{time_connect}s)\n' "$2" 2>&1 || echo "           retry: curl exit $?"
+  fi
 }
 for u in $(grep -oE "https://[a-z0-9.-]+\.(qa|com)(/[a-zA-Z0-9/_-]*)?" src/FlameCTS.html | grep -vE "supabase|github|google|jsdelivr|cloudflare|appspot|wa\.me|rss2json|wikipedia|open-meteo|youtube" | sort -u); do check "page link" "$u"; done
 node -e "const {FEEDS}=require('./feeds'); for (const [k,v] of Object.entries(FEEDS)) console.log(k+' '+(typeof v==='function'?v():v))" | while read -r k u; do check "feed $k" "$u"; done
