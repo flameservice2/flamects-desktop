@@ -530,9 +530,18 @@ a{color:var(--fl2)}
 .lh-sheet{position:relative}
 .lh-sheet .lh-wm{position:absolute;left:50%;top:50%;width:52%;max-width:105mm;transform:translate(-50%,-50%);opacity:.09;pointer-events:none;user-select:none;z-index:0}
 .lh-sheet>*:not(.lh-wm){position:relative;z-index:1}
-.lh-sheet .lh-body{flex:1 1 auto;min-height:120mm;padding:4mm 2mm;font-size:13.5px;line-height:1.6;outline:none;overflow-wrap:anywhere;cursor:text}
+.lh-sheet .lh-body{flex:1 1 auto;min-height:120mm;padding:4mm 2mm 4mm 5mm;font-size:13.5px;line-height:1.6;outline:none;overflow-wrap:anywhere;cursor:text}
+.lh-meta{display:flex;justify-content:space-between;gap:12px;padding:0 2mm 2mm;font-size:12.5px;color:#333}
+.lh-meta .lh-k{font-weight:700;color:#d9331f;letter-spacing:.04em;text-transform:uppercase;font-size:11px}
+.lh-meta .lh-v{display:inline-block;min-width:34mm;border-bottom:1px dotted #c9bfb0;outline:none;padding:0 2px}
+.lh-meta .lh-v:empty:before{content:attr(data-ph);color:#b3aa9c}
+.lh-rule{height:4px;margin:0 0 3mm}
+.lh-rule svg{display:block;width:100%;height:4px}
+.lh-body{border-left:3px solid #e8611f;border-image:linear-gradient(#f6a21a,#e8611f 30%,#d9331f 65%,rgba(217,51,31,0)) 1}
+.lh-swoosh{display:flex;justify-content:flex-end;margin:2mm 0 0}
+.lh-swoosh svg{width:58mm;height:7mm}
 .lh-sheet .lh-body:empty:before{content:attr(data-ph);color:#a79f92}
-.lh-sheet .lh-foot{margin-top:auto!important}
+.lh-sheet .lh-foot{margin-top:2mm!important}
 .lh-body ul,.lh-body ol{margin:6px 0;padding-left:22px}
 .lh-tools{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0;margin-bottom:10px;align-items:center}
 .app-header-body{position:relative;z-index:1;min-width:0}
@@ -943,8 +952,9 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
   .doc.lhp{display:flex;flex-direction:column;min-height:277mm;position:relative}
   .doc.lhp .lh-wm{position:absolute;left:50%;top:50%;width:105mm;transform:translate(-50%,-50%);opacity:.09;pointer-events:none;z-index:0}
   .doc.lhp>*:not(.lh-wm){position:relative;z-index:1}
-  .doc.lhp .lh-body{flex:1 1 auto;padding:4mm 2mm;font-size:12.5px;line-height:1.6;overflow-wrap:anywhere}
-  .doc.lhp .lh-foot{margin-top:auto!important}
+  .doc.lhp .lh-body{flex:1 1 auto;padding:4mm 2mm 4mm 5mm;font-size:12.5px;line-height:1.6;overflow-wrap:anywhere}
+  .doc.lhp .lh-foot{margin-top:2mm!important}
+  .doc.lhp .lh-meta .lh-v{border-bottom:0}
   .doc-head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #d9331f;padding-bottom:12px;margin-bottom:16px}
   .doc-head img{width:58px;height:58px}
   .doc-head h1{font-size:20px;margin:0}
@@ -6560,18 +6570,57 @@ function lhClean(html){
   });
   return box.innerHTML;
 }
-function lhDraftRead(){ try{ return lhClean(localStorage.getItem(LH_DRAFT_KEY)||''); }catch(e){ return ''; } }
-function lhDraftWrite(html){ try{ if(html) localStorage.setItem(LH_DRAFT_KEY, html); else localStorage.removeItem(LH_DRAFT_KEY); }catch(e){} }
-function printLetterHead(bodyHtml){
+// The draft is {ref, date, body}; drafts saved before Ref/Date existed
+// were the body HTML alone.
+function lhDraftRead(){
+  let raw = '';
+  try{ raw = localStorage.getItem(LH_DRAFT_KEY) || ''; }catch(e){}
+  let d = {ref:'', date:'', body:''};
+  if(raw.charAt(0)==='{'){ try{ d = Object.assign(d, JSON.parse(raw)); }catch(e){} } else d.body = raw;
+  return {ref:String(d.ref||''), date:String(d.date||''), body:lhClean(d.body)};
+}
+function lhDraftWrite(d){
+  try{
+    if(d && (d.ref || d.date || d.body)) localStorage.setItem(LH_DRAFT_KEY, JSON.stringify(d));
+    else localStorage.removeItem(LH_DRAFT_KEY);
+  }catch(e){}
+}
+// Flame-coloured accent line (orange to red, fading out), drawn as SVG so
+// it prints even when the print dialog leaves background graphics off.
+let lhRuleN = 0;
+function lhRule(cls){
+  const id = 'lhg'+(++lhRuleN);
+  return '<div class="lh-rule '+(cls||'')+'"><svg viewBox="0 0 600 4" preserveAspectRatio="none" aria-hidden="true">'+
+    '<defs><linearGradient id="'+id+'" x1="0" x2="1"><stop offset="0" stop-color="#f6a21a"/><stop offset=".35" stop-color="#e8611f"/><stop offset=".7" stop-color="#d9331f"/><stop offset="1" stop-color="#d9331f" stop-opacity="0"/></linearGradient></defs>'+
+    '<rect width="600" height="4" rx="2" fill="url(#'+id+')"/></svg></div>';
+}
+// Ref / Date line under the header; editable on the page, plain text in print.
+function lhMetaHTML(d, editable){
+  const ce = editable ? ' contenteditable="true" spellcheck="false"' : '';
+  return '<div class="lh-meta">'+
+    '<div><span class="lh-k">Ref:</span> <span class="lh-v" id="'+(editable?'lh-ref':'')+'"'+ce+' data-ph="FCTS/LTR/…">'+esc(d.ref||'')+'</span></div>'+
+    '<div><span class="lh-k">Date:</span> <span class="lh-v" id="'+(editable?'lh-date':'')+'"'+ce+'>'+esc(d.date||fdate(todayISO()))+'</span></div>'+
+  '</div>'+lhRule();
+}
+// Small closing mark above the footer: three flame-coloured curves.
+function lhSwoosh(){
+  return '<div class="lh-swoosh"><svg viewBox="0 0 220 26" aria-hidden="true">'+
+    '<path d="M2 22 C 60 22, 120 4, 218 4" fill="none" stroke="#f6a21a" stroke-width="2.4" stroke-linecap="round"/>'+
+    '<path d="M42 24 C 96 24, 150 10, 218 10" fill="none" stroke="#e8611f" stroke-width="2.4" stroke-linecap="round"/>'+
+    '<path d="M86 25 C 130 25, 176 16, 218 16" fill="none" stroke="#d9331f" stroke-width="2.4" stroke-linecap="round"/></svg></div>';
+}
+function printLetterHead(d){
   return printDoc('<div class="doc qtnp lhp">'+lhWatermark()+letterBandTop()+
-    '<div class="lh-body">'+lhClean(bodyHtml)+'</div>'+
-    letterBandFoot()+'</div>', false, {onePage:true});
+    lhMetaHTML(d, false)+
+    '<div class="lh-body">'+lhClean(d.body)+'</div>'+
+    lhSwoosh()+letterBandFoot()+'</div>', false, {onePage:true});
 }
 function rLetterHead(m){
   const edit = can('letterhead','edit');
   const tools = [['bold','<b>B</b>','Bold'],['italic','<i>I</i>','Italic'],['underline','<u>U</u>','Underline'],
     ['insertUnorderedList','• List','Bullet list'],['insertOrderedList','1. List','Numbered list'],
     ['justifyLeft','Left','Align left'],['justifyCenter','Centre','Align centre'],['justifyRight','Right','Align right']];
+  const draft = lhDraftRead();
   m.innerHTML = pageHead('Business','Letter Head',
     '<button class="btn fire" id="lh-print">Print / PDF</button> '+(edit?'<button class="btn" id="lh-clear">Clear</button>':''))+
   (edit?'<div class="filters lh-tools">'+
@@ -6580,14 +6629,21 @@ function rLetterHead(m){
     '<span class="tiny">Kept on this PC until you press Clear.</span>'+
   '</div>':'')+
   '<div class="lh-sheet">'+lhWatermark()+letterBandTop()+
+    lhMetaHTML(draft, edit)+
     '<div class="lh-body" id="lh-body"'+(edit?' contenteditable="true"':'')+' data-ph="Type your letter here…"></div>'+
-    letterBandFoot()+
+    lhSwoosh()+letterBandFoot()+
   '</div>';
-  const body = $('#lh-body');
-  body.innerHTML = lhDraftRead();
+  const body = $('#lh-body'), ref = $('#lh-ref'), dt = $('#lh-date');
+  body.innerHTML = draft.body;
+  const current = ()=>({ref: ref ? ref.innerText.trim() : draft.ref, date: dt ? dt.innerText.trim() : draft.date, body: body.innerText.trim() ? body.innerHTML : ''});
   let t = null;
-  const keep = ()=>{ clearTimeout(t); t = setTimeout(()=>lhDraftWrite(body.innerText.trim() ? body.innerHTML : ''), 300); };
+  const keep = ()=>{ clearTimeout(t); t = setTimeout(()=>{ const d = current(); if(d.date===fdate(todayISO())) d.date=''; lhDraftWrite(d); }, 300); };
   body.addEventListener('input', keep);
+  [ref, dt].forEach(el=>{ if(!el) return;
+    el.addEventListener('input', keep);
+    el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); body.focus(); } });
+    el.addEventListener('paste', e=>{ e.preventDefault(); document.execCommand('insertText', false, (e.clipboardData||window.clipboardData).getData('text/plain').replace(/\s+/g,' ')); });
+  });
   // Paste as plain text so the letter keeps one clean style.
   body.addEventListener('paste', e=>{
     e.preventDefault();
@@ -6599,10 +6655,11 @@ function rLetterHead(m){
     b.onclick = ()=>{ body.focus(); document.execCommand(b.dataset.cmd, false, null); keep(); };
   });
   const sz = $('#lh-size'); if(sz) sz.onchange = ()=>{ if(sz.value){ body.focus(); document.execCommand('fontSize', false, sz.value); keep(); } sz.value=''; };
-  $('#lh-print').onclick = ()=>printLetterHead(body.innerHTML);
+  $('#lh-print').onclick = ()=>printLetterHead(current());
   const cl = $('#lh-clear'); if(cl) cl.onclick = ()=>{
-    if(!body.innerText.trim()){ body.innerHTML=''; lhDraftWrite(''); return; }
-    confirmDlg('Clear the letter and start with a blank sheet?', ()=>{ body.innerHTML=''; lhDraftWrite(''); body.focus(); });
+    const reset = ()=>{ body.innerHTML=''; if(ref) ref.textContent=''; if(dt) dt.textContent=fdate(todayISO()); lhDraftWrite(null); body.focus(); };
+    if(!body.innerText.trim() && !(ref && ref.innerText.trim())){ reset(); return; }
+    confirmDlg('Clear the letter and start with a blank sheet?', reset);
   };
 }
 // Share a quotation (Sample or Previous) on WhatsApp or by email. In the
