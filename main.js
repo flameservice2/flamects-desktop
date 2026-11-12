@@ -65,6 +65,13 @@ function start() {
   });
 
   registerShareIpc(ipcMain, { app, shell, isTrusted: (wc) => win && wc === win.webContents });
+  // The page asks for an update check when it sees the team using a newer
+  // version, and shows a Restart bar once one is downloaded.
+  const trusted = (e) => win && e.sender === win.webContents;
+  ipcMain.handle('flame:update-check', (e) => { if (trusted(e) && app.isPackaged) autoUpdater.checkForUpdates().catch(() => {}); return app.isPackaged; });
+  ipcMain.handle('flame:update-restart', (e) => { if (trusted(e) && readyVersion) autoUpdater.quitAndInstall(true, true); return !!readyVersion; });
+  win.webContents.on('did-finish-load', () => { if (readyVersion) win.webContents.send('flame:update-ready', readyVersion); });
+  win.on('focus', () => { if (app.isPackaged && Date.now() - lastCheck > 5 * 60 * 1000) check(); });
 
   win.once('ready-to-show', () => { win.maximize(); win.show(); });
   win.loadURL('app://flame/index.html');
@@ -72,12 +79,15 @@ function start() {
 }
 
 // Software updates: new versions are published as GitHub releases. The app
-// checks when it starts and every 30 minutes, downloads a newer version in
+// checks when it starts, every 10 minutes, when the window comes back into
+// focus (at most every 5 minutes) and whenever the shared data shows a
+// teammate on a newer version, downloads a newer version in
 // the background (the download is checked against the release's checksum),
 // and offers a restart. If the user picks "Later" it installs when the app
 // is closed. Help > Check for updates checks straight away and says what it
 // found. Business data is untouched; it stays in Supabase.
-let manualCheck = false, readyVersion = null;
+let manualCheck = false, readyVersion = null, lastCheck = 0;
+const check = () => { lastCheck = Date.now(); autoUpdater.checkForUpdates().catch(() => {}); };
 async function offerRestart(version) {
   if (!win) return;
   const { response } = await dialog.showMessageBox(win, {
@@ -108,6 +118,7 @@ function startAutoUpdate() {
   autoUpdater.on('update-downloaded', (info) => {
     if (readyVersion === info.version) return;   // already offered once
     readyVersion = info.version;
+    if (win) win.webContents.send('flame:update-ready', info.version);
     offerRestart(info.version);
   });
   autoUpdater.on('error', (e) => {
@@ -115,9 +126,8 @@ function startAutoUpdate() {
     if (manualCheck) tell('Could not check for updates.', 'Check the internet connection and try again. (' + ((e && e.message) || 'unknown error').slice(0, 200) + ')');
     manualCheck = false;
   });
-  const check = () => autoUpdater.checkForUpdates().catch(() => {});
   setTimeout(check, 10 * 1000);
-  setInterval(check, 30 * 60 * 1000);
+  setInterval(check, 10 * 60 * 1000);
 }
 function checkForUpdatesNow() {
   if (!app.isPackaged) { tell('Updates only work in the installed app.'); return; }

@@ -23,6 +23,61 @@
   const markUnsaved = on => { try { if (on) localStorage.setItem(UNSAVED_KEY, '1'); else localStorage.removeItem(UNSAVED_KEY); } catch (e) {} };
   const hasUnsaved = () => { try { return localStorage.getItem(UNSAVED_KEY) === '1'; } catch (e) { return false; } };
   let restored = false;
+  const APP_VER = ((document.querySelector('meta[name="flame-version"]') || {}).content) || '0';
+  const verNum = v => String(v || '0').split('.').map(n => parseInt(n, 10) || 0);
+  const cmpVer = (a, b) => { const x = verNum(a), y = verNum(b); for (let i = 0; i < 3; i++) { if ((x[i]||0) !== (y[i]||0)) return (x[i]||0) > (y[i]||0) ? 1 : -1; } return 0; };
+
+  /* ---------------- document numbers after combining two saves ----------
+     Two laptops can each take the next number (TXN-0063, PV-2026-004 ...)
+     before they see each other's save. When the saves are combined, the
+     record this device added keeps its content but gets the next free
+     number, and every counter ends up past the highest number in use. */
+  const NUMBERING = [
+    { list: 'transactions', field: 'ref', seq: 'txn', re: /^(TXN-)(\d+)$/, pad: 4 },
+    { list: 'vouchers', field: 'no', seq: 'rv', re: /^(RV-\d{4}-)(\d+)$/, pad: 3 },
+    { list: 'vouchers', field: 'no', seq: 'pv', re: /^(PV-\d{4}-)(\d+)$/, pad: 3 },
+    { list: 'invoices', field: 'no', seq: 'inv', re: /^(INV-\d{4}-)(\d+)$/, pad: 3 },
+    { list: 'bookings', field: 'ref', seq: 'bk', re: /^(BK-\d{4}-)(\d+)$/, pad: 3 },
+    { list: 'enquiries', field: 'ref', seq: 'en', re: /^(ENQ-\d{4}-)(\d+)$/, pad: 3 },
+    { list: 'quotations', field: 'no', seq: 'qtn', re: /^(QTN-\d{2}-\d{2}-\d{4}-)(\d+)$/, pad: 3 },
+    { list: 'quotations', field: 'no', seq: 'qsmp', re: /^(SAMPLE-)(\d+)$/, pad: 3 }
+  ];
+  function fixNumbers(out, theirs){
+    if (!isObj(out) || !isObj(theirs)) return 0;
+    let changed = 0;
+    const seqO = (out.meta && out.meta.seq) || null, seqT = (theirs.meta && theirs.meta.seq) || {};
+    NUMBERING.forEach(r => {
+      const list = Array.isArray(out[r.list]) ? out[r.list] : [];
+      const theirIds = new Set((Array.isArray(theirs[r.list]) ? theirs[r.list] : []).map(x => x && x.id));
+      let max = 0; const seen = {};
+      list.forEach(x => { const m = x && r.re.exec(String(x[r.field] || '')); if (m) { max = Math.max(max, +m[2]); seen[x[r.field]] = (seen[x[r.field]] || 0) + 1; } });
+      list.forEach(x => {
+        const m = x && r.re.exec(String(x[r.field] || ''));
+        if (!m || seen[x[r.field]] < 2 || theirIds.has(x.id)) return;
+        seen[x[r.field]]--;
+        max++; x[r.field] = m[1] + String(max).padStart(r.pad, '0'); changed++;
+        if (r.list === 'vouchers') (out.transactions || []).forEach(t => { if (t && t.voucherNo === m[0] && [x.txnId, x.txnId2, x.invTxnId, x.invTxnId2].includes(t.id)) { t.voucherNo = x[r.field]; t.notes = t.notes === m[0] ? x[r.field] : t.notes; } });
+      });
+      if (seqO && r.seq in seqO) seqO[r.seq] = Math.max(+seqO[r.seq] || 0, +seqT[r.seq] || 0, max);
+    });
+    return changed;
+  }
+
+  /* ---------------- keeping every laptop on the newest version ---------- */
+  function checkOutdated(v){
+    if (!v || !v._appVersion || cmpVer(v._appVersion, APP_VER) <= 0) return;
+    if (window.__flameOutdated === v._appVersion) return;
+    window.__flameOutdated = v._appVersion;
+    const desk = !!(window.flameDesktop && window.flameDesktop.checkForUpdates);
+    showUpdateBar('A newer Flame CTS (' + v._appVersion + ') is in use by your team. ' + (desk ? 'Update before approving anything.' : 'Reload this page to update before approving anything.'), desk ? 'Update now' : null);
+    if (window.flameDesktop && window.flameDesktop.checkForUpdates) window.flameDesktop.checkForUpdates();
+  }
+  function showUpdateBar(text, btnLabel){
+    const bar = document.getElementById('fx-update'); if (!bar) return;
+    bar.querySelector('span').textContent = text;
+    const b = bar.querySelector('button'); b.style.display = btnLabel ? '' : 'none'; if (btnLabel) b.textContent = btnLabel;
+    bar.style.display = 'flex';
+  }
   const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const isObj = o => o !== null && typeof o === 'object' && !Array.isArray(o);
@@ -126,6 +181,7 @@
       if (!restored) markUnsaved(false);
     }
     if (v) setBase(v);
+    checkOutdated(v);
     return out;
   };
   const restoreTimer = setInterval(() => {
@@ -139,7 +195,7 @@
   Store.saveRemote = async function(data){
     const sent = JSON.stringify(data);
     const who = (typeof MY_PROFILE !== 'undefined' && MY_PROFILE && MY_PROFILE.name) || '';
-    let out, theirs, mergedIn = false, ours = data;
+    let out, theirs, mergedIn = false, ours = data, renumbered = false;
     for (let attempt = 0; ; attempt++){
       const { data: row, error } = await sb.from('app_meta').select('value').eq('key', 'app_state').maybeSingle();
       if (error) throw error;
@@ -152,9 +208,12 @@
       if (theirs && !same(theirs, base)) {
         // Someone else saved since we last synced: combine instead of overwrite.
         out = merge3(base || {}, ours, theirs);
+        if (out === ours) out = clone(ours);
+        if (fixNumbers(out, theirs)) renumbered = true;
         mergedIn = mergedIn || !same(out, ours);
       }
       out._rev = newRev(); out._savedBy = who; out._savedAt = new Date().toISOString();
+      out._appVersion = theirs && theirs._appVersion && cmpVer(theirs._appVersion, APP_VER) > 0 ? theirs._appVersion : APP_VER;
       lastSavedRev = out._rev;
       if (!theirs) {
         const { error: upErr } = await sb.from('app_meta').upsert({ key: 'app_state', value: out });
@@ -189,13 +248,15 @@
       Store.cacheWrite(S);
     }
     if (data === S || out === S) {
-      if (mergedIn && MY_PROFILE) { render(); toast('Combined with changes ' + (theirs && theirs._savedBy || 'another user') + ' saved.'); }
+      if (mergedIn && MY_PROFILE) { render(); toast('Combined with changes ' + (theirs && theirs._savedBy || 'another user') + ' saved.' + (renumbered ? ' A number already taken on another laptop was moved to the next free number.' : '')); }
     }
+    checkOutdated(theirs);
     refreshBar();
   };
 
   /* ---------------- picking up other people's saves ---------------- */
   function adoptRemote(v){
+    checkOutdated(v);
     if (!v || savePending) return;
     if (v._rev && v._rev === lastSavedRev && S && S._rev === v._rev) return;   // our own save echoing back
     if (same(v, S)) { setBase(v); return; }
@@ -239,6 +300,25 @@
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg>Save</button>';
   const app = document.getElementById('app');
   app.insertBefore(bar, document.getElementById('main'));
+  // Update bar: shown when this laptop is behind the version the team uses,
+  // or when a downloaded update is waiting for a restart.
+  const upd = document.createElement('div');
+  upd.id = 'fx-update';
+  upd.innerHTML = '<span></span><button type="button" class="btn fire sm"></button>';
+  app.insertBefore(upd, document.getElementById('main'));
+  upd.querySelector('button').addEventListener('click', async () => {
+    const d = window.flameDesktop; if (!d) return;
+    if (upd.dataset.ready) {
+      if (savePending) { try { await queueSave(); } catch (e) {} }
+      d.restartToUpdate();
+    } else { d.checkForUpdates(); showUpdateBar('Downloading the update… you can keep working.', null); }
+  });
+  if (window.flameDesktop && window.flameDesktop.onUpdateReady) {
+    window.flameDesktop.onUpdateReady(ver => {
+      upd.dataset.ready = '1';
+      showUpdateBar('Flame CTS ' + ver + ' is ready. Restart to finish updating — your saved work stays as it is.', 'Restart now');
+    });
+  }
   const mBtn = document.createElement('button');
   mBtn.type = 'button';
   mBtn.className = 'btn fire sm fx-save fx-save-m';

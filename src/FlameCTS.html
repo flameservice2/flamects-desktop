@@ -7060,17 +7060,60 @@ function postVoucherLedger(v){
 // voucher -- posts it to the General Ledger for the first time (via
 // postVoucherLedger(), the exact same posting logic used when no approval
 // is needed) and records who approved it and when.
-function approveVoucher(voucherId){
-  const v = S.vouchers.find(x=>x.id===voucherId); if(!v) return;
+// Approving or rejecting must act on the voucher exactly as it is in the
+// shared database right now. On a second laptop the copy on screen can be
+// behind (someone edited or deleted the voucher a moment ago, or the live
+// update has not arrived yet), and approving that copy used to post the
+// old amounts. So first send this device's own pending changes, then load
+// the latest shared data. Without a connection, approvals wait.
+async function syncShared(){
+  try{
+    clearTimeout(saveTimer);
+    if(savePending){ await queueSave(); if(savePending) return false; }
+    const remote = await Store.loadRemote();
+    if(!remote) return false;
+    if(JSON.stringify(remote) !== JSON.stringify(S)){ S = remote; Store.cacheWrite(S); }
+    return true;
+  }catch(e){ return false; }
+}
+function decisionBlocked(){
+  if(window.__flameOutdated){
+    toast('Update Flame CTS first: version '+window.__flameOutdated+' is in use by your team. Use the Update bar at the top, or Help › Check for updates.', true);
+    return true;
+  }
+  return false;
+}
+async function freshPendingVoucher(voucherId, seen){
+  if(!(await syncShared())){
+    toast('Cannot reach the server. Approvals and rejections need a live connection so they are recorded once, on the latest figures. Try again when you are back online.', true);
+    render(); return null;
+  }
+  const v = S.vouchers.find(x=>x.id===voucherId);
+  if(!v || v.approvalStatus!=='Pending Approval'){
+    render();
+    toast(v ? v.no+' is already '+(v.approvalStatus||'Approved').toLowerCase()+(v.approvedByName?' by '+v.approvedByName:v.rejectedByName?' by '+v.rejectedByName:'')+'.' : 'This voucher was deleted by someone else.', true);
+    return null;
+  }
+  if(seen && JSON.stringify(v) !== seen){
+    render();
+    toast(v.no+' was changed by someone else a moment ago. Check the new figures and approve again.', true);
+    return null;
+  }
+  return v;
+}
+async function approveVoucher(voucherId){
+  if(decisionBlocked()) return;
   const u = currentUser();
   if(!u || u.role!=='Super Admin'){ toast('Only a Super Admin can approve this.', true); return; }
+  const v = await freshPendingVoucher(voucherId); if(!v) return;
   if(v.createdById && u.id===v.createdById){ toast('You created this voucher — a different Super Admin has to approve it.', true); return; }
-  if(v.approvalStatus!=='Pending Approval'){ toast('This voucher is not waiting for approval.', true); return; }
-  confirmDlg('Approve '+v.no+' — '+v.party+' ('+CUR+' '+fmt(v.amount)+')? This posts it to the General Ledger.', ()=>{
+  const seen = JSON.stringify(v);
+  confirmDlg('Approve '+v.no+' — '+v.party+' ('+CUR+' '+fmt(v.amount)+')? This posts it to the General Ledger.', async ()=>{
+    const v = await freshPendingVoucher(voucherId, seen); if(!v) return;
     const {refs, pickedInv} = postVoucherLedger(v);
     v.approvalStatus = 'Approved'; v.approvedById = u.id; v.approvedByName = u.name; v.approvedAt = new Date().toISOString();
     logAudit('Voucher approved', v.no+' · '+v.party+' · '+CUR+' '+fmt(v.amount)+' · approved by '+u.name);
-    save(); render();
+    save(); render(); flushSaveNow();
     toast(v.no+' approved and posted to '+(refs.join(', ')||'the General Ledger')+(pickedInv?'. Invoice '+pickedInv.no+' marked Completed.':'.'));
   });
 }
@@ -7079,21 +7122,26 @@ function approveVoucher(voucherId){
 // record itself is kept (for the audit trail) and marked Rejected rather
 // than silently deleted; whoever has edit rights can still Delete it from
 // the list if it should be cleared out entirely.
-function rejectVoucher(voucherId){
-  const v = S.vouchers.find(x=>x.id===voucherId); if(!v) return;
+async function rejectVoucher(voucherId){
+  if(decisionBlocked()) return;
   const u = currentUser();
   if(!u || u.role!=='Super Admin'){ toast('Only a Super Admin can reject this.', true); return; }
+  const v = await freshPendingVoucher(voucherId); if(!v) return;
   if(v.createdById && u.id===v.createdById){ toast('You created this voucher — a different Super Admin has to decide on it.', true); return; }
-  if(v.approvalStatus!=='Pending Approval'){ toast('This voucher is not waiting for approval.', true); return; }
+  const seen = JSON.stringify(v);
   modal('Reject '+v.no,
     '<p class="tiny" style="margin-bottom:10px">'+esc(v.party)+' — '+CUR+' '+fmt(v.amount)+'. It will never post to the General Ledger unless a new voucher is created.</p>'+
     '<div class="f"><label>Reason (optional)</label><textarea id="rj-re" rows="3" placeholder="Why this is being rejected"></textarea></div>',
     {saveLabel:'Reject voucher', onSave:(mo)=>{
-      v.approvalStatus = 'Rejected'; v.rejectedById = u.id; v.rejectedByName = u.name; v.rejectedAt = new Date().toISOString();
-      v.rejectReason = val({node:mo}, 'rj-re');
-      logAudit('Voucher rejected', v.no+' · '+v.party+' · '+CUR+' '+fmt(v.amount)+' · rejected by '+u.name+(v.rejectReason?' — '+v.rejectReason:''));
-      save(); render();
-      toast(v.no+' rejected.');
+      const reason = val({node:mo}, 'rj-re');
+      (async ()=>{
+        const v = await freshPendingVoucher(voucherId, seen); if(!v) return;
+        v.approvalStatus = 'Rejected'; v.rejectedById = u.id; v.rejectedByName = u.name; v.rejectedAt = new Date().toISOString();
+        v.rejectReason = reason;
+        logAudit('Voucher rejected', v.no+' · '+v.party+' · '+CUR+' '+fmt(v.amount)+' · rejected by '+u.name+(v.rejectReason?' — '+v.rejectReason:''));
+        save(); render(); flushSaveNow();
+        toast(v.no+' rejected.');
+      })();
     }});
 }
 // Read-only rendering of an invoice's Set 1 / Set 2 classification as one

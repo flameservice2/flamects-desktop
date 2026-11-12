@@ -16,3 +16,6 @@
 }
 @media print{ #fx-savebar,.fx-save-m{display:none!important} }
 @media (max-width:440px){ #topbar #sync-badge{display:none} }
+
+#fx-update{display:none;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:0 0 10px;padding:9px 14px;border-radius:10px;background:#fff4e5;border:1px solid #f3c58a;color:#5a3300;font-size:13px;font-weight:600}
+#fx-update button{white-space:nowrap}
