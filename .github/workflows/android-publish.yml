@@ -23,6 +23,10 @@ jobs:
           bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
           "$bt/apksigner" verify --verbose --print-certs --min-sdk-version 24 android/dist/FlameCTS-Android.apk | grep -E "Verified|Signer #1 certificate DN|SHA-256"
           "$bt/aapt2" dump badging android/dist/FlameCTS-Android.apk | head -1
+      - name: Check the database accepts the app's address
+        run: |
+          u=$(grep -o 'const SUPABASE_URL = "[^"]*"' src/FlameCTS.html | cut -d'"' -f2)
+          curl -s -o /dev/null -D - -X OPTIONS "$u/rest/v1/app_meta" -H "Origin: https://appassets.androidplatform.net" -H "Access-Control-Request-Method: PATCH" -H "Access-Control-Request-Headers: apikey,authorization,content-type,prefer" | grep -iE "^HTTP|access-control-allow-(origin|methods|headers)"
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -44,6 +48,7 @@ jobs:
             adb exec-out screencap -p > shot1.png
             echo "SHOT1_BEGIN $(base64 -w0 shot1.png) SHOT1_END"
             adb shell uiautomator dump /sdcard/u.xml > /dev/null; adb shell cat /sdcard/u.xml | tr '>' '\n' | grep -oE '(text|class)="[^"]+"' | head -40
+            adb shell ping -c 2 -W 3 github.com | tail -2
             adb shell am force-stop com.flamects.cts
             adb shell am start -n com.flamects.cts/.MainActivity --ez selftest true
             sleep 25
