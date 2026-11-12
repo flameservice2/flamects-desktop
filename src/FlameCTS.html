@@ -530,7 +530,8 @@ a{color:var(--fl2)}
 .lh-sheet{position:relative}
 .lh-sheet .lh-wm{position:absolute;left:50%;top:50%;width:52%;max-width:105mm;transform:translate(-50%,-50%);opacity:.09;pointer-events:none;user-select:none;z-index:0}
 .lh-sheet>*:not(.lh-wm){position:relative;z-index:1}
-.lh-sheet .lh-body{flex:1 1 auto;min-height:120mm;padding:4mm 2mm 4mm 5mm;font-size:13.5px;line-height:1.6;outline:none;overflow-wrap:anywhere;cursor:text}
+.lh-sheet .lh-main{flex:1 1 auto;display:flex;flex-direction:column}
+.lh-sheet .lh-body{flex:0 0 auto;min-height:120mm;padding:4mm 2mm 4mm 5mm;font-size:13.5px;line-height:1.6;outline:none;overflow-wrap:anywhere;cursor:text}
 .lh-meta{display:flex;justify-content:space-between;gap:12px;padding:0 2mm 2mm;font-size:12.5px;color:#333}
 .lh-meta .lh-k{font-weight:700;color:#d9331f;letter-spacing:.04em;text-transform:uppercase;font-size:11px}
 .lh-meta .lh-v{display:inline-block;min-width:34mm;border-bottom:1px dotted #c9bfb0;outline:none;padding:0 2px}
@@ -539,6 +540,14 @@ a{color:var(--fl2)}
 .lh-rule svg{display:block;width:100%;height:4px}
 .lh-body{border-left:3px solid #e8611f;border-image:linear-gradient(#f6a21a,#e8611f 30%,#d9331f 65%,rgba(217,51,31,0)) 1}
 .lh-swoosh{display:flex;justify-content:flex-end;margin:2mm 0 0}
+.lh-opt{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.lh-opt input{width:auto}
+.lh-sig{display:flex;align-items:center;gap:4mm;padding:3mm 2mm 0 5mm}
+.lh-sig-who{width:58mm;text-align:center;font-size:12px;line-height:1.45;color:#111}
+.lh-sig-who img{display:block;width:34mm;height:auto;margin:0 auto 1mm}
+.lh-sig-gap{height:16mm}
+.lh-sig-ln{border-top:1px solid #333;padding-top:1.5mm}
+.lh-seal{width:30mm;height:30mm;transform:rotate(-8deg);opacity:.9}
 .lh-swoosh svg{width:58mm;height:7mm}
 .lh-sheet .lh-body:empty:before{content:attr(data-ph);color:#a79f92}
 .lh-sheet .lh-foot{margin-top:2mm!important}
@@ -955,7 +964,8 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
   .doc.lhp{display:flex;flex-direction:column;min-height:277mm;position:relative}
   .doc.lhp .lh-wm{position:absolute;left:50%;top:50%;width:105mm;transform:translate(-50%,-50%);opacity:.09;pointer-events:none;z-index:0}
   .doc.lhp>*:not(.lh-wm){position:relative;z-index:1}
-  .doc.lhp .lh-body{flex:1 1 auto;padding:4mm 2mm 4mm 5mm;font-size:12.5px;line-height:1.6;overflow-wrap:anywhere}
+  .doc.lhp .lh-main{flex:1 1 auto}
+  .doc.lhp .lh-body{padding:4mm 2mm 4mm 5mm;font-size:12.5px;line-height:1.6;overflow-wrap:anywhere}
   .doc.lhp .lh-foot{margin-top:2mm!important}
   .doc.lhp .lh-meta .lh-v{border-bottom:0}
   .doc-head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #d9331f;padding-bottom:12px;margin-bottom:16px}
@@ -6649,18 +6659,18 @@ function lhClean(html){
   });
   return box.innerHTML;
 }
-// The draft is {ref, date, body}; drafts saved before Ref/Date existed
-// were the body HTML alone.
+// The draft is {ref, date, body, seal, sign}; drafts saved before Ref/Date
+// existed were the body HTML alone.
 function lhDraftRead(){
   let raw = '';
   try{ raw = localStorage.getItem(LH_DRAFT_KEY) || ''; }catch(e){}
   let d = {ref:'', date:'', body:''};
   if(raw.charAt(0)==='{'){ try{ d = Object.assign(d, JSON.parse(raw)); }catch(e){} } else d.body = raw;
-  return {ref:String(d.ref||''), date:String(d.date||''), body:lhClean(d.body)};
+  return {ref:String(d.ref||''), date:String(d.date||''), body:lhClean(d.body), seal:!!d.seal, sign:!!d.sign};
 }
 function lhDraftWrite(d){
   try{
-    if(d && (d.ref || d.date || d.body)) localStorage.setItem(LH_DRAFT_KEY, JSON.stringify(d));
+    if(d && (d.ref || d.date || d.body || d.seal || d.sign)) localStorage.setItem(LH_DRAFT_KEY, JSON.stringify(d));
     else localStorage.removeItem(LH_DRAFT_KEY);
   }catch(e){}
 }
@@ -6681,6 +6691,16 @@ function lhMetaHTML(d, editable){
     '<div><span class="lh-k">Date:</span> <span class="lh-v" id="'+(editable?'lh-date':'')+'"'+ce+'>'+esc(d.date||fdate(todayISO()))+'</span></div>'+
   '</div>'+lhRule();
 }
+// Signature and company seal under the letter text, same images as the
+// Quotation's "Attach company seal / Attach Stanly Sign when printed".
+function lhSigHTML(d){
+  if(!d.seal && !d.sign) return '';
+  return '<div class="lh-sig">'+
+    '<div class="lh-sig-who">'+(d.sign?'<img src="'+SIGNATURE+'" alt="Signature">':'<div class="lh-sig-gap"></div>')+
+      '<div class="lh-sig-ln"><b>Stanly Varghese</b><br>Head of Finance</div></div>'+
+    (d.seal?'<img class="lh-seal" src="'+SEAL+'" alt="Company Seal">':'')+
+  '</div>';
+}
 // Small closing mark above the footer: three flame-coloured curves.
 function lhSwoosh(){
   return '<div class="lh-swoosh"><svg viewBox="0 0 220 26" aria-hidden="true">'+
@@ -6691,7 +6711,7 @@ function lhSwoosh(){
 function printLetterHead(d){
   return printDoc('<div class="doc qtnp lhp">'+lhWatermark()+letterBandTop()+
     lhMetaHTML(d, false)+
-    '<div class="lh-body">'+lhClean(d.body)+'</div>'+
+    '<div class="lh-main"><div class="lh-body">'+lhClean(d.body)+'</div>'+lhSigHTML(d)+'</div>'+
     lhSwoosh()+letterBandFoot()+'</div>', false, {onePage:true});
 }
 function rLetterHead(m){
@@ -6705,19 +6725,25 @@ function rLetterHead(m){
   (edit?'<div class="filters lh-tools">'+
     tools.map(t=>'<button type="button" class="btn sm" data-cmd="'+t[0]+'" title="'+t[2]+'">'+t[1]+'</button>').join('')+
     '<select id="lh-size" title="Text size" style="width:auto"><option value="">Text size</option><option value="2">Small</option><option value="3">Normal</option><option value="5">Large</option><option value="6">Heading</option></select>'+
+    '<label class="tiny lh-opt"><input type="checkbox" id="lh-seal"'+(draft.seal?' checked':'')+'> Attach company seal when printed</label>'+
+    '<label class="tiny lh-opt"><input type="checkbox" id="lh-sign"'+(draft.sign?' checked':'')+'> Attach Stanly Sign when printed</label>'+
     '<span class="tiny">Kept on this device until you press Clear.</span>'+
   '</div>':'')+
   '<div class="lh-sheet">'+lhWatermark()+letterBandTop()+
     lhMetaHTML(draft, edit)+
-    '<div class="lh-body" id="lh-body"'+(edit?' contenteditable="true"':'')+' data-ph="Type your letter here…"></div>'+
+    '<div class="lh-main"><div class="lh-body" id="lh-body"'+(edit?' contenteditable="true"':'')+' data-ph="Type your letter here…"></div>'+
+    '<div id="lh-sigbox">'+lhSigHTML(draft)+'</div></div>'+
     lhSwoosh()+letterBandFoot()+
   '</div>';
   const body = $('#lh-body'), ref = $('#lh-ref'), dt = $('#lh-date');
   body.innerHTML = draft.body;
-  const current = ()=>({ref: ref ? ref.innerText.trim() : draft.ref, date: dt ? dt.innerText.trim() : draft.date, body: body.innerText.trim() ? body.innerHTML : ''});
+  const sealCb = $('#lh-seal'), signCb = $('#lh-sign');
+  const current = ()=>({ref: ref ? ref.innerText.trim() : draft.ref, date: dt ? dt.innerText.trim() : draft.date, body: body.innerText.trim() ? body.innerHTML : '',
+    seal: sealCb ? sealCb.checked : draft.seal, sign: signCb ? signCb.checked : draft.sign});
   let t = null;
   const keep = ()=>{ clearTimeout(t); t = setTimeout(()=>{ const d = current(); if(d.date===fdate(todayISO())) d.date=''; lhDraftWrite(d); }, 300); };
   body.addEventListener('input', keep);
+  [sealCb, signCb].forEach(cb=>{ if(cb) cb.onchange = ()=>{ $('#lh-sigbox').innerHTML = lhSigHTML(current()); keep(); }; });
   [ref, dt].forEach(el=>{ if(!el) return;
     el.addEventListener('input', keep);
     el.addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); body.focus(); } });
@@ -6736,7 +6762,8 @@ function rLetterHead(m){
   const sz = $('#lh-size'); if(sz) sz.onchange = ()=>{ if(sz.value){ body.focus(); document.execCommand('fontSize', false, sz.value); keep(); } sz.value=''; };
   $('#lh-print').onclick = ()=>printLetterHead(current());
   const cl = $('#lh-clear'); if(cl) cl.onclick = ()=>{
-    const reset = ()=>{ body.innerHTML=''; if(ref) ref.textContent=''; if(dt) dt.textContent=fdate(todayISO()); lhDraftWrite(null); body.focus(); };
+    const reset = ()=>{ body.innerHTML=''; if(ref) ref.textContent=''; if(dt) dt.textContent=fdate(todayISO());
+      if(sealCb) sealCb.checked=false; if(signCb) signCb.checked=false; $('#lh-sigbox').innerHTML=''; lhDraftWrite(null); body.focus(); };
     if(!body.innerText.trim() && !(ref && ref.innerText.trim())){ reset(); return; }
     confirmDlg('Clear the letter and start with a blank sheet?', reset);
   };
