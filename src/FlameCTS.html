@@ -934,6 +934,9 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
 .contact-actions{display:flex;gap:6px;flex:none}
 .contact-actions a{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--paper);color:var(--ink2);text-decoration:none;font-size:14px}
 .contact-actions a:hover{background:var(--line)}
+.contact-actions a.wa{background:#25d366;color:#fff}
+.contact-actions a.wa:hover{background:#1ebe5a}
+@media (max-width:920px){ .contact-actions{gap:8px} .contact-actions a{width:40px;height:40px;font-size:16px} }
 
 #bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:59;background:var(--ink);padding:6px 4px calc(6px + env(safe-area-inset-bottom));grid-auto-flow:column;grid-auto-columns:1fr}
 #bottomnav button{background:none;border:0;color:#9d938a;font-size:9.5px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;font-weight:600}
@@ -3288,13 +3291,28 @@ function initials(name){
 }
 // Builds a wa.me deep link from a free-typed phone number (strips
 // spaces/dashes/parentheses/+ and a leading international "00").
-function waLink(mobile, text){
+// An 8-digit local number (no country code) is taken as Qatar (+974).
+function waNumber(mobile){
   let d = String(mobile||'').replace(/\D/g,'');
-  if(!d) return '';
   if(d.startsWith('00')) d = d.slice(2);
+  if(d.length===8) d = '974'+d;
+  return d;
+}
+function waLink(mobile, text){
+  const d = waNumber(mobile);
+  if(!d) return '';
   return 'https://wa.me/'+d+(text?('?text='+encodeURIComponent(text)):'');
 }
+// Direct chat with a contact: in the Android app this opens the WhatsApp
+// app straight on that chat; elsewhere it is the usual wa.me link.
+function waChatLink(mobile){
+  const d = waNumber(mobile);
+  if(!d) return '';
+  return ANDROID_APP ? 'whatsapp://send?phone='+d : waLink(d);
+}
 const WA_ICON = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 11.5a8.38 8.38 0 0 1-8.9 8.4 8.5 8.5 0 0 1-4-1L3 20l1.1-4.5a8.38 8.38 0 0 1-1-4A8.38 8.38 0 0 1 11.6 3a8.38 8.38 0 0 1 8.9 8.5Z"/></svg>';
+// Filled chat bubble with a handset: the green WhatsApp chat button on Contacts.
+const WA_CHAT_ICON = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M12 2.5a9.4 9.4 0 0 0-8.1 14.2L2.6 21.4l4.8-1.3A9.4 9.4 0 1 0 12 2.5Z"/><path fill="#25d366" d="M9.1 7.4c-.2-.5-.4-.5-.7-.5h-.5c-.2 0-.5.1-.8.4-.3.3-1 1-1 2.4s1 2.8 1.2 3c.1.2 2 3.2 5 4.4 2.5 1 3 .8 3.5.7.5 0 1.7-.7 1.9-1.4.2-.7.2-1.3.2-1.4-.1-.1-.3-.2-.6-.4l-1.9-.9c-.3-.1-.5-.1-.7.1l-.9 1.1c-.2.2-.3.2-.6.1-.3-.1-1.2-.5-2.3-1.4-.9-.8-1.4-1.7-1.6-2-.2-.3 0-.4.1-.6l.4-.5c.2-.2.2-.3.3-.5.1-.2 0-.4 0-.5l-.9-2.1Z"/></svg>';
 /* ---- VCF (vCard) import: parses .vcf text into contact records ---- */
 function readFileAsText(file){
   return new Promise((resolve,reject)=>{
@@ -3441,10 +3459,11 @@ function rContacts(m){
           (c.position||c.company?'<div class="tiny">'+esc([c.position,c.company].filter(Boolean).join(' · '))+'</div>':'')+
           (c.mobile?'<div class="tiny">'+esc(c.mobile)+'</div>':'')+
         '</div>'+
+        // Order: message (email), call, then WhatsApp direct chat.
         '<div class="contact-actions">'+
-          (c.mobile?'<a href="'+esc(waLink(c.mobile))+'" target="_blank" rel="noopener" title="WhatsApp '+esc(c.name)+'" onclick="event.stopPropagation()">'+WA_ICON+'</a>':'')+
-          (c.mobile?'<a href="tel:'+esc(c.mobile)+'" title="Call '+esc(c.name)+'" onclick="event.stopPropagation()">☎</a>':'')+
-          (c.email?'<a href="mailto:'+esc(c.email)+'" title="Email '+esc(c.name)+'" onclick="event.stopPropagation()">✉</a>':'')+
+          (c.email?'<a href="mailto:'+esc(c.email)+'" title="Email '+esc(c.name)+'" aria-label="Email '+esc(c.name)+'" onclick="event.stopPropagation()">✉</a>':'')+
+          (c.mobile?'<a href="tel:'+esc(c.mobile)+'" title="Call '+esc(c.name)+'" aria-label="Call '+esc(c.name)+'" onclick="event.stopPropagation()">☎</a>':'')+
+          (c.mobile?'<a class="wa" href="'+esc(waChatLink(c.mobile))+'" target="_blank" rel="noopener" title="WhatsApp chat with '+esc(c.name)+'" aria-label="WhatsApp chat with '+esc(c.name)+'" onclick="event.stopPropagation()">'+WA_CHAT_ICON+'</a>':'')+
         '</div></div>';
     });
     $('#ct-list').innerHTML = html;
@@ -3511,7 +3530,7 @@ function contactDetail(id){
     '<div class="contact-avatar lg">'+esc(initials(c.name))+'</div>'+
     (c.position||c.company?'<div class="stat-line"><span>Role</span><b>'+esc([c.position,c.company].filter(Boolean).join(' · '))+'</b></div>':'')+
     (c.mobile?'<div class="stat-line"><span>Mobile</span><b><a href="tel:'+esc(c.mobile)+'">'+esc(c.mobile)+'</a></b></div>':'')+
-    (c.mobile?'<div class="stat-line"><span>WhatsApp</span><b><a href="'+esc(waLink(c.mobile))+'" target="_blank" rel="noopener">Chat on WhatsApp</a></b></div>':'')+
+    (c.mobile?'<div class="stat-line"><span>WhatsApp</span><b><a href="'+esc(waChatLink(c.mobile))+'" target="_blank" rel="noopener">Chat on WhatsApp</a></b></div>':'')+
     (c.email?'<div class="stat-line"><span>Email</span><b><a href="mailto:'+esc(c.email)+'">'+esc(c.email)+'</a></b></div>':'')+
     (website?'<div class="stat-line"><span>Website</span><b><a href="'+esc(website)+'" target="_blank" rel="noopener">'+esc(c.website)+'</a></b></div>':'')+
     (c.notes?'<p class="tiny" style="margin-top:10px;padding:10px;background:var(--paper);border-radius:9px">'+esc(c.notes)+'</p>':'')+
