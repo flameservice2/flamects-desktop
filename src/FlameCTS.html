@@ -6617,6 +6617,9 @@ function voucherRows(list, fallbackDc, canEdit){
     '<td style="white-space:nowrap"><button class="btn sm" data-view="'+v.id+'">View</button> <button class="btn sm" data-pr="'+v.id+'">Print</button>'+
     (!txn && canEdit && approvalStatus==='Approved'?' <button class="btn sm fire" data-fix="'+v.id+'" title="Create the missing ledger entry and link it to this voucher">Fix link</button>':'')+
     (canDecide?' <button class="btn sm fire" data-appr="'+v.id+'">Approve</button> <button class="btn sm danger" data-rej="'+v.id+'">Reject</button>':'')+
+    // A payment can be edited until it is approved; once approved it is in
+    // the General Ledger and stays as posted.
+    (canEdit && v.kind==='PV' && (approvalStatus==='Pending Approval' || approvalStatus==='Rejected')?' <button class="btn sm" data-edit="'+v.id+'">Edit</button>':'')+
     (canEdit?' <button class="btn sm danger" data-del="'+v.id+'">Delete</button>':'')+
     waitingNote+
     '</td></tr>'; }).join('');
@@ -6737,6 +6740,7 @@ function rPayments(m){
   });
   $$('#v-list [data-fix]').forEach(x=>x.onclick=()=>fixVoucherLink(x.dataset.fix));
   $$('#v-list [data-del]').forEach(x=>x.onclick=()=>deleteVoucher(x.dataset.del));
+  $$('#v-list [data-edit]').forEach(x=>x.onclick=()=>{ const v=S.vouchers.find(y=>y.id===x.dataset.edit); if(v) voucherForm('PV', null, v); });
   $$('#v-list [data-appr]').forEach(x=>x.onclick=()=>approveVoucher(x.dataset.appr));
   $$('#v-list [data-rej]').forEach(x=>x.onclick=()=>rejectVoucher(x.dataset.rej));
 }
@@ -6998,8 +7002,9 @@ function pickInvoiceModal(onPick){
     {saveLabel:null, wide:true});
   $$('#modal-root [data-pick]').forEach(x=>x.onclick=()=>onPick(x.dataset.pick));
 }
-function voucherForm(kind, pickedInvId){
+function voucherForm(kind, pickedInvId, editV){
   const isRV = kind==='RV';
+  if(isRV || (editV && (editV.approvalStatus||'Approved')==='Approved')) editV = null;
   // Set 1 / Set 2 -- the exact same Main/Sub Code account-classification
   // boxes as the Invoice create/edit screen (see txnSetBoxHTML /
   // wireTxnSetBox / readTxnSetBox above). Set 1 is required and becomes
@@ -7039,8 +7044,18 @@ function voucherForm(kind, pickedInvId){
   const subOptionsHtml = (defMainGroup ? (defMainGroup.subs||[]).slice().sort((a,b)=>(a.code||'').localeCompare(b.code||'', undefined, {numeric:true})) : [])
     .map(s=>'<option value="'+s.id+'"'+(s.id===defSubId?' selected':'')+'>'+esc(s.code)+(s.name?' — '+esc(s.name):'')+'</option>').join('');
   const setDc = isRV ? 'C' : 'D', setMethod = isRV ? 'Bank Transfer' : 'Cash';
-  const set1Tx = {date:todayISO(), amount:'', dc:setDc, method:setMethod};
-  const set2Tx = {date:todayISO(), amount:'', dc:setDc, method:setMethod};
+  const set1Tx = editV && editV.set1 ? Object.assign({}, editV.set1) : {date:todayISO(), amount:'', dc:setDc, method:setMethod};
+  const set2Tx = editV && editV.set2 ? Object.assign({}, editV.set2) : {date:todayISO(), amount:'', dc:setDc, method:setMethod};
+  // Editing: open each Set on the account it was saved with.
+  const setFor = st=>{
+    const g = st ? mcGroups.find(x=>x.id===st.mainCodeId) : null;
+    const sub = g ? (g.subs||[]).find(x=>x.id===st.subCodeId) : null;
+    const opts = (g ? (g.subs||[]).slice().sort((a,b)=>(a.code||'').localeCompare(b.code||'', undefined, {numeric:true})) : [])
+      .map(x=>'<option value="'+x.id+'"'+(sub&&x.id===sub.id?' selected':'')+'>'+esc(x.code)+(x.name?' — '+esc(x.name):'')+'</option>').join('');
+    return {g, sub, opts};
+  };
+  const e1 = editV && editV.set1 ? setFor(editV.set1) : null;
+  const e2 = editV && editV.set2 ? setFor(editV.set2) : null;
   // Both Receipt and Payment vouchers show Cheque No / Bank / Cheque date /
   // Cheque amount fields in their own box below Set 1's box, instead of
   // nested inside the tinted Set 1 / Set 2 box -- see chequeDetailsHTML()
@@ -7050,8 +7065,10 @@ function voucherForm(kind, pickedInvId){
   // Set 1 -- see the sync wiring below) reuses Set 1's Cheque No/Bank/
   // Cheque date rather than asking for them twice (see readTxnSetBox()'s
   // fallback for suffix '2').
-  const set1Html = txnSetBoxHTML('Set 1', '', set1Tx, mcGroups, defMainId, defMainGroup, subOptionsHtml, defSub, true, true);
-  const set2Html = txnSetBoxHTML('Set 2', '2', set2Tx, mcGroups, '', null, '<option value="">— none (post to main code) —</option>', null, true, true);
+  const set1Html = e1 && e1.g ? txnSetBoxHTML('Set 1', '', set1Tx, mcGroups, e1.g.id, e1.g, e1.opts, e1.sub, true, true)
+    : txnSetBoxHTML('Set 1', '', set1Tx, mcGroups, defMainId, defMainGroup, subOptionsHtml, defSub, true, true);
+  const set2Html = e2 && e2.g ? txnSetBoxHTML('Set 2', '2', set2Tx, mcGroups, e2.g.id, e2.g, e2.opts, e2.sub, true, true)
+    : txnSetBoxHTML('Set 2', '2', set2Tx, mcGroups, '', null, '<option value="">— none (post to main code) —</option>', null, true, true);
   const chequeHtml = '<div class="frow" style="gap:12px">'+chequeDetailsHTML('Set 1', '', set1Tx)+'</div>';
   let invoiceBlockHtml = '';
   // The invoice's own Set 1 / Set 2 classification (how the invoice itself
@@ -7152,6 +7169,27 @@ function voucherForm(kind, pickedInvId){
       const r2 = readTxnSetBox('2', mcGroups);
       if(r2 && r2.error){ toast(r2.error, true); return false; }
       const am = round2(r1.amount + (r2?r2.amount:0));
+      if(editV){
+        // Edit in place: same voucher number, still waiting for approval
+        // (a rejected one goes back for approval). Nothing is in the
+        // General Ledger yet, so there is nothing to re-post.
+        const wasRejected = editV.approvalStatus==='Rejected';
+        Object.assign(editV, {date:val({node:mo},'w-dt')||editV.date, party:pa, amount:am, method:r1.method, desc:de, set1:r1});
+        ['chequeNo','chequeBank','chequeDate','chequeAmount','set2','acct2','rejectedById','rejectedByName','rejectedAt','rejectReason'].forEach(k=>delete editV[k]);
+        if(r1.method==='Cheque'){ editV.chequeNo=r1.chequeNo; editV.chequeBank=r1.chequeBank; editV.chequeDate=r1.chequeDate; editV.chequeAmount=r1.chequeAmount; }
+        const eg1 = mcGroups.find(x=>x.id===r1.mainCodeId), es1 = eg1 ? (eg1.subs||[]).find(x=>x.id===r1.subCodeId) : null;
+        editV.acct = {main: eg1?eg1.code:'', sub: es1?es1.code:''};
+        if(r2){
+          editV.set2 = r2;
+          const eg2 = mcGroups.find(x=>x.id===r2.mainCodeId), es2 = eg2 ? (eg2.subs||[]).find(x=>x.id===r2.subCodeId) : null;
+          editV.acct2 = {main:eg2?eg2.code:'', sub:es2?es2.code:'', amount:r2.amount};
+        }
+        editV.approvalStatus = 'Pending Approval';
+        logAudit('Voucher edited', editV.no+' · '+pa+' · '+CUR+' '+fmt(am)+(wasRejected?' · sent again for approval':''));
+        save(); render();
+        toast(editV.no+' updated'+(wasRejected?' and sent again for approval.':' — still waiting for approval.'));
+        return editV;
+      }
       S.meta.seq.pv++;
       const v = {id:uid('v'), no:'PV-2026-'+String(S.meta.seq.pv).padStart(3,'0'), kind:'PV',
         date:val({node:mo},'w-dt')||todayISO(), party:pa, amount:am, method:r1.method,
@@ -7197,7 +7235,7 @@ function voucherForm(kind, pickedInvId){
       return v;
     }
   };
-  modal(kind==='RV'?'New receipt voucher':'New payment voucher',
+  modal(kind==='RV'?'New receipt voucher':(editV?'Edit payment voucher '+editV.no:'New payment voucher'),
     isRV ? (
       '<div class="frow"><div class="f"><label>Date</label><input type="date" id="w-dt" value="'+todayISO()+'"></div>'+
       '<div class="f" style="align-self:end"><button type="button" class="btn'+(pickedInv?'':' fire')+'" id="w-pick-inv" style="width:100%">'+(pickedInv?'Change invoice':'Pick Invoices')+'</button></div></div>'+
@@ -7207,9 +7245,9 @@ function voucherForm(kind, pickedInvId){
       chequeHtml+
       '<div class="tiny" style="margin-top:2px">'+(pickedInv?'This will also post both the Invoice Set 1 &amp; Set 2 above and this New Receipt Set 1 &amp; Set 2 to the General Ledger, properly linked to this voucher — deleting the voucher removes all of them again.':'This will also create a matching entry in the General Ledger, properly linked to this voucher — the two always stay in sync.')+'</div>'
     ) : (
-      '<div class="frow"><div class="f"><label>Date</label><input type="date" id="w-dt" value="'+todayISO()+'"></div>'+
-      '<div class="f"><label>Paid to *</label><input id="w-pa" placeholder="e.g. XYZ Trading"></div></div>'+
-      '<div class="f"><label>Being / narration *</label><input id="w-de" placeholder="e.g. Office rent for August"></div>'+
+      '<div class="frow"><div class="f"><label>Date</label><input type="date" id="w-dt" value="'+(editV?editV.date:todayISO())+'"></div>'+
+      '<div class="f"><label>Paid to *</label><input id="w-pa" placeholder="e.g. XYZ Trading" value="'+esc(editV?editV.party||'':'')+'"></div></div>'+
+      '<div class="f"><label>Being / narration *</label><input id="w-de" placeholder="e.g. Office rent for August" value="'+esc(editV?editV.desc||'':'')+'"></div>'+
       '<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px">Payment Set 1 &amp; Set 2</div>'+
       '<div class="frow" style="gap:12px">'+set1Html+set2Html+'</div>'+
       chequeHtml+
