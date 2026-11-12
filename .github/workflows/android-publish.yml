@@ -39,10 +39,14 @@ jobs:
             adb install -r android/dist/FlameCTS-Android.apk
             adb logcat -c
             adb shell am start -n com.flamects.cts/.MainActivity --ez selftest true
-            sleep 60
+            sleep 20
+            adb exec-out screencap -p > shot1.png
+            echo "SHOT1_BEGIN $(base64 -w0 shot1.png) SHOT1_END"
+            sleep 40
             adb exec-out screencap -p > shot.png
             echo "SHOT_BEGIN $(base64 -w0 shot.png) SHOT_END"
-            adb logcat -d | grep -E "SELFTEST|FlameCTS|AndroidRuntime|FATAL|Uncaught|CONSOLE" | tail -60
+            adb shell dumpsys activity activities | grep -E "ResumedActivity|topResumed" | head -5
+            adb logcat -d | grep -iE "SELFTEST|FlameCTS|flamects|AndroidRuntime|FATAL|Uncaught|CONSOLE|lowmemory|has died" | tail -80
             adb logcat -d | grep -q "SELFTEST pdf ok"
       - name: Attach it to the release
         env:
