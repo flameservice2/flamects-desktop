@@ -17,6 +17,12 @@
    ===================================================================== */
 (function(){
   const BASE_KEY = 'flame_erp_base_v1';
+  // Set while this device has changes the server has not confirmed, so a
+  // restart before the connection comes back does not drop them.
+  const UNSAVED_KEY = 'flame_erp_unsaved_v1';
+  const markUnsaved = on => { try { if (on) localStorage.setItem(UNSAVED_KEY, '1'); else localStorage.removeItem(UNSAVED_KEY); } catch (e) {} };
+  const hasUnsaved = () => { try { return localStorage.getItem(UNSAVED_KEY) === '1'; } catch (e) { return false; } };
+  let restored = false;
   const clone = o => o == null ? o : JSON.parse(JSON.stringify(o));
   const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const isObj = o => o !== null && typeof o === 'object' && !Array.isArray(o);
@@ -90,14 +96,46 @@
     return out;
   }
   window.__flameMerge3 = merge3;
+  let unconfirmedRev = null;
+  async function landed(rev){
+    for (let i = 0; i < 3; i++) {
+      try {
+        const { data, error } = await sb.from('app_meta').select('rev:value->>_rev').eq('key', 'app_state').maybeSingle();
+        if (!error) return !!(data && data.rev === rev);
+      } catch (e) {}
+      await new Promise(r => setTimeout(r, 1500));
+    }
+    return false;
+  }
 
   /* ---------------- safer load / save ---------------- */
   const origLoad = Store.loadRemote.bind(Store);
   Store.loadRemote = async function(){
     const v = await origLoad();
+    let out = v;
+    // Changes made here last time that never reached the server (the app
+    // was closed while offline): combine them with the live data instead
+    // of letting the live data replace them, then send them.
+    if (v && hasUnsaved()) {
+      const cached = Store.cacheRead();
+      if (cached && !same(cached, v)) {
+        out = merge3(base || {}, cached, v);
+        out._rev = v._rev; out._savedBy = v._savedBy; out._savedAt = v._savedAt;
+        restored = !same(out, v);
+      }
+      if (!restored) markUnsaved(false);
+    }
     if (v) setBase(v);
-    return v;
+    return out;
   };
+  const restoreTimer = setInterval(() => {
+    if (!restored) { clearInterval(restoreTimer); return; }
+    if (S && typeof MY_PROFILE !== 'undefined' && MY_PROFILE) {
+      clearInterval(restoreTimer); restored = false;
+      save();
+      toast('Sending changes made on this PC while it was offline.');
+    }
+  }, 1000);
   Store.saveRemote = async function(data){
     const sent = JSON.stringify(data);
     const who = (typeof MY_PROFILE !== 'undefined' && MY_PROFILE && MY_PROFILE.name) || '';
@@ -106,6 +144,10 @@
       const { data: row, error } = await sb.from('app_meta').select('value').eq('key', 'app_state').maybeSingle();
       if (error) throw error;
       theirs = row ? row.value : null;
+      // An earlier save from this device reached the server even though
+      // its reply was lost: that is now the version we last synced.
+      if (theirs && unconfirmedRev && theirs._rev === unconfirmedRev) setBase(theirs);
+      unconfirmedRev = null;
       out = ours;
       if (theirs && !same(theirs, base)) {
         // Someone else saved since we last synced: combine instead of overwrite.
@@ -124,8 +166,16 @@
       // again, merging their newer save in first.
       let q = sb.from('app_meta').update({ value: out }).eq('key', 'app_state');
       q = theirs._rev ? q.eq('value->>_rev', theirs._rev) : q.is('value->>_rev', null);
-      const { data: rows, error: upErr } = await q.select('key');
-      if (upErr) throw upErr;
+      let rows, upErr;
+      try { ({ data: rows, error: upErr } = await q.select('key')); } catch (e) { upErr = e; }
+      if (upErr) {
+        // The connection dropped after sending. Ask the server whether the
+        // save arrived before telling the user it did not: otherwise they
+        // enter it again and it ends up twice.
+        unconfirmedRev = out._rev;
+        if (await landed(out._rev)) { unconfirmedRev = null; break; }
+        throw upErr;
+      }
       if (rows && rows.length) break;
       if (attempt >= 5) throw new Error('The shared data kept changing while saving. Please press Save again.');
       setBase(theirs); ours = out;
@@ -216,7 +266,7 @@
   }
   setInterval(refreshBar, 30000);
   const origBadge = setConnBadge;
-  setConnBadge = function(ok){ origBadge(ok); refreshBar(); };
+  setConnBadge = function(ok){ origBadge(ok); markUnsaved(savePending); refreshBar(); };
 
   async function finalSave(){
     if (saving || !S || !MY_PROFILE) return;

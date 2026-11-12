@@ -1147,7 +1147,19 @@ const dl = (name, blob) => { const a=document.createElement('a'); a.href=URL.cre
 const SUPABASE_URL = "https://xfqndiapjwzifpgfgzak.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhmcW5kaWFwand6aWZwZ2ZnemFrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ5MTQyMTgsImV4cCI6MjEwMDQ5MDIxOH0.GmrrJ8qMLB6ueIPNgCOy2vDHFuRdg49Qk2gf_w8XbDw";
 const AUTH_DOMAIN = "flame.internal"; // "stanly" -> "stanly@flame.internal"
-const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// On a weak connection a request can stall with no answer at all. Saves
+// go out one at a time (see queueSave), so one stalled request used to
+// hold back every save after it until the app was closed. Give up after
+// 20 seconds instead; the save is retried automatically.
+const SB_TIMEOUT_MS = 20000;
+const sbFetch = (input, init) => {
+  const ctl = new AbortController();
+  const outer = init && init.signal;
+  if(outer){ if(outer.aborted) ctl.abort(); else outer.addEventListener('abort', ()=>ctl.abort(), {once:true}); }
+  const timer = setTimeout(()=>ctl.abort(), SB_TIMEOUT_MS);
+  return fetch(input, Object.assign({}, init, {signal: ctl.signal})).finally(()=>clearTimeout(timer));
+};
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, {global:{fetch: sbFetch}});
 const toAuthEmail = u => { u = (u||'').trim().toLowerCase(); return u.includes('@') ? u : u + '@' + AUTH_DOMAIN; };
 
 /* ---------------- storage: shared Supabase record + local offline cache ---------------- */
@@ -4344,6 +4356,17 @@ function ledgerCheck(){
     if(v.status!=='Completed' && rvs.length) invRows.push({ref:v.no, date:v.date, desc:v.customer+' — still Pending but receipt '+rvs.map(x=>x.no).join(', ')+' is approved', dc:'', amount:invTotal(v), acct:''});
   });
   add('Invoice status does not match receipts', 'Outstanding counts every invoice that is not Completed.', invRows);
+  // Doubles: the same voucher entered twice, or one voucher posted to the
+  // ledger more than once (e.g. approved again on a device that had not
+  // yet received the first approval).
+  const vSig = v => [v.kind, v.date, round2(v.amount), String(v.party||'').trim().toLowerCase(), String(v.desc||'').trim().toLowerCase()].join('|');
+  const vSigCount = {}; S.vouchers.forEach(v=>{ const k=vSig(v); vSigCount[k]=(vSigCount[k]||0)+1; });
+  add('Vouchers that look entered twice', 'Same type, date, party, amount and narration. Keep one and delete the other on the Receipt or Payment page (deleting a voucher also removes its ledger lines).',
+    S.vouchers.filter(v=>vSigCount[vSig(v)]>1).map(v=>({id:v.id, ref:v.no, date:v.date, desc:v.party+' — '+(v.desc||''), dc:'', amount:Number(v.amount)||0, acct:v.approvalStatus||'Approved'})));
+  const linked = new Set(); S.vouchers.forEach(v=>['txnId','txnId2','invTxnId','invTxnId2'].forEach(k=>{ if(v[k]) linked.add(v[k]); }));
+  const postedNos = new Set(S.vouchers.filter(v=>v.txnId).map(v=>v.no));
+  add('Voucher posted to the ledger more than once', 'Extra ledger lines carrying a voucher number that the voucher itself is not linked to. Delete the extra lines in the General Ledger.',
+    S.transactions.filter(t=>t.voucherNo && postedNos.has(t.voucherNo) && !linked.has(t.id) && S.transactions.some(x=>x!==t && linked.has(x.id) && x.voucherNo===t.voucherNo && x.dc===t.dc && round2(x.amount)===round2(t.amount))).map(row));
   return {cards, issues, totals:{debit:round2(dr), credit:round2(cr), diff:round2(dr-cr), entries:main.length}};
 }
 function showLedgerCheck(){
