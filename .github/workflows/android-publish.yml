@@ -1,0 +1,53 @@
+# Publishes the signed Android app (android/dist/FlameCTS-Android.apk, signed
+# outside GitHub with the release key) to the release named in
+# android/latest.json, after checking its signature and starting it on an
+# Android emulator.
+name: Android publish
+
+on:
+  push:
+    branches: [main]
+    paths: ['android/dist/**']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the signature
+        run: |
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$bt/apksigner" verify --verbose --print-certs --min-sdk-version 24 android/dist/FlameCTS-Android.apk | grep -E "Verified|Signer #1 certificate DN|SHA-256"
+          "$bt/aapt2" dump badging android/dist/FlameCTS-Android.apk | head -1
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Start it on an Android 14 emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          script: |
+            adb install -r android/dist/FlameCTS-Android.apk
+            adb logcat -c
+            adb shell am start -n com.flamects.cts/.MainActivity --ez selftest true
+            sleep 60
+            adb exec-out screencap -p > shot.png
+            echo "SHOT_BEGIN $(base64 -w0 shot.png) SHOT_END"
+            adb logcat -d | grep -E "SELFTEST|FlameCTS|AndroidRuntime|FATAL|Uncaught|CONSOLE" | tail -60
+            adb logcat -d | grep -q "SELFTEST pdf ok"
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          tag=$(node -p "require('./android/latest.json').apk.split('/download/')[1].split('/')[0]")
+          gh release upload "$tag" android/dist/FlameCTS-Android.apk --clobber
+          gh release delete-asset "$tag" FlameCTS-Android-unsigned.apk -y || true

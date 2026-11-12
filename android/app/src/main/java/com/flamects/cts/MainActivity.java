@@ -16,6 +16,7 @@ import android.print.PrintAttributes;
 import android.print.PrintDocumentAdapter;
 import android.print.PrintManager;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.util.Base64;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
@@ -99,6 +100,12 @@ public class MainActivity extends Activity {
       }
       @Override public void onPageFinished(WebView v, String url) {
         if (readyVersion != null) tellReady();
+        // Smoke test used by the Android workflow on an emulator:
+        // am start -n com.flamects.cts/.MainActivity --ez selftest true
+        if (getIntent() != null && getIntent().getBooleanExtra("selftest", false)) {
+          v.evaluateJavascript("console.log('SELFTEST page ' + (document.querySelector('meta[name=flame-version]')||{}).content + ' shim ' + !!(window.flameDesktop&&window.flameDesktop.android) + ' supabase ' + typeof window.supabase);" +
+            "window.flameDesktop.savePdf('selftest').then(function(p){console.log('SELFTEST pdf ok '+p)}, function(e){console.log('SELFTEST pdf fail '+e)})", null);
+        }
       }
     });
     web.setWebChromeClient(new WebChromeClient() {
@@ -426,8 +433,10 @@ public class MainActivity extends Activity {
       ui.post(() -> {
         File out = new File(sharedDir(), safeName(name, ".pdf"));
         PrintDocumentAdapter ad = web.createPrintDocumentAdapter(out.getName());
-        PdfExporter.export(ad, a4(landscape), out, (ok, err) ->
-          js("window.__flameCb(" + JSONObject.quote(cb) + "," + ok + "," + JSONObject.quote(ok ? out.getAbsolutePath() : String.valueOf(err)) + ")"));
+        PdfExporter.export(ad, a4(landscape), out, (ok, err) -> {
+          Log.i("FlameCTS", "savePdf " + ok + " " + out.length() + " bytes " + (err == null ? "" : err));
+          js("window.__flameCb(" + JSONObject.quote(cb) + "," + ok + "," + JSONObject.quote(ok ? out.getAbsolutePath() : String.valueOf(err)) + ")");
+        });
       });
     }
 
