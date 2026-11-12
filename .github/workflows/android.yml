@@ -1,5 +1,5 @@
 # Builds the Flame CTS Android app (android/) around the current page and
-# keeps it as a workflow artifact. The APK is signed outside GitHub with the
+# attaches it, unsigned, to this version's release (FlameCTS-Android-unsigned.apk). The APK is signed outside GitHub with the
 # release key (android/sign_apk.py), so this run proves the signing script
 # with a throw-away key and Android's own apksigner.
 name: Android
@@ -9,6 +9,9 @@ on:
     branches: [main]
     paths: ['android/**', '!android/latest.json', '.github/workflows/android.yml']
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   apk:
@@ -44,8 +47,11 @@ jobs:
           python3 android/sign_apk.py "$apk" test-signed.apk t.p12 test1234
           "$bt/apksigner" verify --verbose --min-sdk-version 24 test-signed.apk
           "$bt/aapt2" dump badging test-signed.apk | head -5
-      - uses: actions/upload-artifact@v4
-        with:
-          name: FlameCTS-Android-unsigned
-          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
-          retention-days: 30
+      - name: Attach the unsigned APK to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          v=$(node -p "require('./package.json').version")
+          for i in $(seq 1 40); do gh release view "v$v" >/dev/null 2>&1 && break; sleep 30; done
+          cp android/app/build/outputs/apk/release/app-release-unsigned.apk FlameCTS-Android-unsigned.apk
+          gh release upload "v$v" FlameCTS-Android-unsigned.apk --clobber
