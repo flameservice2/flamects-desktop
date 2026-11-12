@@ -1,0 +1,51 @@
+# Builds the Flame CTS Android app (android/) around the current page and
+# keeps it as a workflow artifact. The APK is signed outside GitHub with the
+# release key (android/sign_apk.py), so this run proves the signing script
+# with a throw-away key and Android's own apksigner.
+name: Android
+
+on:
+  push:
+    branches: [main]
+    paths: ['android/**', '!android/latest.json', '.github/workflows/android.yml']
+  workflow_dispatch:
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build the page
+        run: |
+          npm ci
+          npm run build:app
+          rm -rf android/app/src/main/assets/app
+          cp -r app android/app/src/main/assets/app
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.14.3
+      - name: Build APK
+        run: gradle -p android --no-daemon assembleRelease
+      - name: Check the signing script
+        run: |
+          pip install --quiet cryptography
+          apk=android/app/build/outputs/apk/release/app-release-unsigned.apk
+          bt=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+          "$bt/zipalign" -c -p 4 "$apk"
+          keytool -genkeypair -keystore t.p12 -storetype PKCS12 -storepass test1234 -alias t -keyalg RSA -keysize 3072 -validity 30 -dname "CN=Test"
+          python3 android/sign_apk.py "$apk" test-signed.apk t.p12 test1234
+          "$bt/apksigner" verify --verbose --min-sdk-version 24 test-signed.apk
+          "$bt/aapt2" dump badging test-signed.apk | head -5
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FlameCTS-Android-unsigned
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
+          retention-days: 30

@@ -1,0 +1,27 @@
+// Flame CTS for Android: a thin shell around the same page the PC app uses.
+// The page (app/ from scripts/prepare.js) is copied into assets/app at build
+// time; newer pages are downloaded from GitHub releases by the app itself.
+// Bump versionCode only when this shell (Java/manifest) changes; phones are
+// then offered the new APK (see android/latest.json).
+plugins { id 'com.android.application' }
+
+android {
+  namespace 'com.flamects.cts'
+  compileSdk 34
+  defaultConfig {
+    applicationId 'com.flamects.cts'
+    minSdk 24
+    targetSdk 34
+    versionCode 1
+    versionName '1.0'
+  }
+  buildTypes {
+    release { minifyEnabled false }
+  }
+  compileOptions {
+    sourceCompatibility JavaVersion.VERSION_17
+    targetCompatibility JavaVersion.VERSION_17
+  }
+  lint { checkReleaseBuilds false; abortOnError false }
+  androidResources { noCompress 'html', 'js', 'woff2' }
+}

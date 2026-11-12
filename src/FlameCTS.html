@@ -6688,8 +6688,11 @@ function shareQuotation(q){
   if(!q) return;
   const contact = q.company ? (S.contacts||[]).find(c=>c.mobile && (c.company||'').trim().toLowerCase()===q.company.trim().toLowerCase()) : null;
   const desktop = !!(window.flameDesktop && window.flameDesktop.savePdf);
+  const phone = !!(window.flameDesktop && window.flameDesktop.sharePdf);   // Android app
   const mo = modal('Share '+q.no,
-    '<p class="tiny" style="margin:0 0 12px">'+(desktop
+    '<p class="tiny" style="margin:0 0 12px">'+(phone
+      ? 'The quotation PDF is attached for you in WhatsApp or your email app, with the message ready to send.'
+      : desktop
       ? 'The quotation is saved as a PDF in <b>Documents › Flame CTS › Quotations</b> and that folder opens with the file selected. Drag the PDF into the WhatsApp chat or the email.'
       : 'The print window opens first: choose <b>Save as PDF</b>, then attach that file in WhatsApp or the email.')+'</p>'+
     '<div class="frow" style="gap:12px;align-items:end">'+
@@ -6706,6 +6709,13 @@ function shareQuotation(q){
     let file = null;
     try{ file = await quotationPdfFile(q); }catch(e){ toast('Could not save the PDF: '+(e&&e.message||e), true); return; }
     if(!file && !desktop) await printQuotation(q);
+    if(file && phone){
+      const subject = 'Quotation '+q.no+(q.company?' — '+q.company:'');
+      const to = kind==='wa' ? (waLink(val(mo,'sh-wa'))||'').replace(/^https:\/\/wa\.me\//,'') : (val(mo,'sh-em') || SALES_EMAIL);
+      window.flameDesktop.sharePdf(file, kind, to, subject, text);
+      logAudit('Quotation shared', q.no+' · '+(kind==='wa'?'WhatsApp':'Email'));
+      return;
+    }
     let url;
     if(kind==='wa'){
       const num = val(mo,'sh-wa');

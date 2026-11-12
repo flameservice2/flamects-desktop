@@ -49,7 +49,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           v="${{ steps.ver.outputs.version }}"
+          # The page on its own: the Android app downloads it to update itself.
+          cp app/index.html dist/FlameCTS-app.html
           gh release create "v$v" \
-            "dist/FlameCTS-Setup-$v.exe" "dist/FlameCTS-Setup-$v.exe.blockmap" dist/latest.yml \
+            "dist/FlameCTS-Setup-$v.exe" "dist/FlameCTS-Setup-$v.exe.blockmap" dist/latest.yml dist/FlameCTS-app.html \
             --title "Flame CTS $v" --notes "Flame CTS $v. Installed apps update to this version automatically." > step.log 2>&1 \
             || { tail -n 25 step.log | sed 's/^/::error::/'; exit 1; }
