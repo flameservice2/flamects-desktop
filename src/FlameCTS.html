@@ -2309,23 +2309,23 @@ function printDoc(html, landscape, opts){
   let sty = $('#print-orientation');
   if(landscape){
     if(!sty){ sty = document.createElement('style'); sty.id = 'print-orientation'; document.head.appendChild(sty); }
-    sty.textContent = '@page{size:landscape;margin:8mm}';
+    sty.textContent = '@page{size:A4 landscape;margin:'+ONE_PAGE_MARGIN_MM+'mm}';
   } else if(opts && opts.onePage){
     if(!sty){ sty = document.createElement('style'); sty.id = 'print-orientation'; document.head.appendChild(sty); }
     sty.textContent = '@page{size:A4 portrait;margin:'+ONE_PAGE_MARGIN_MM+'mm}';
   } else if(sty){ sty.remove(); }
-  if(opts && opts.noPrint) return opts.onePage ? fitPrintToOnePage() : Promise.resolve();
-  if(opts && opts.onePage) return fitPrintToOnePage().then(()=>setTimeout(()=>window.print(), 60));
+  if(opts && opts.noPrint) return opts.onePage ? fitPrintToOnePage(!!landscape) : Promise.resolve();
+  if(opts && opts.onePage) return fitPrintToOnePage(!!landscape).then(()=>setTimeout(()=>window.print(), 60));
   setTimeout(()=>window.print(), 60);
   return Promise.resolve();
 }
-// Shrinks a portrait document just enough that it prints on one A4 page,
+// Shrinks a document (portrait, or landscape when asked) just enough that it prints on one A4 page,
 // header to footer. The print styles only apply while printing, so the
 // document is laid out in a hidden frame with those styles switched on,
 // measured, and #print-area .doc is zoomed down if it is taller than the
 // page. Short documents are left at full size.
 const ONE_PAGE_MARGIN_MM = 8;
-async function fitPrintToOnePage(){
+async function fitPrintToOnePage(landscape){
   const doc = $('#print-area .doc'); if(!doc) return;
   doc.style.zoom = '';
   const mm = v => v*96/25.4;
@@ -2333,7 +2333,7 @@ async function fitPrintToOnePage(){
   const links = [...document.querySelectorAll('link[rel="stylesheet"]')].map(l=>'<link rel="stylesheet" href="'+l.href+'">').join('');
   const f = document.createElement('iframe');
   f.setAttribute('aria-hidden','true');
-  f.style.cssText = 'position:fixed;left:-10000px;top:0;width:'+(210-2*ONE_PAGE_MARGIN_MM)+'mm;height:50px;border:0;visibility:hidden';
+  f.style.cssText = 'position:fixed;left:-10000px;top:0;width:'+((landscape?297:210)-2*ONE_PAGE_MARGIN_MM)+'mm;height:50px;border:0;visibility:hidden';
   document.body.appendChild(f);
   try{
     const d = f.contentDocument;
@@ -2341,7 +2341,7 @@ async function fitPrintToOnePage(){
     await Promise.all([...d.images].map(i=>i.decode ? i.decode().catch(()=>{}) : null));
     if(d.fonts && d.fonts.ready) await d.fonts.ready;
     const el = d.querySelector('.doc'); if(!el) return;
-    const avail = mm(297-2*ONE_PAGE_MARGIN_MM) - 6;
+    const avail = mm((landscape?210:297)-2*ONE_PAGE_MARGIN_MM) - 6;
     const heightAt = z => { el.style.zoom = String(z); return el.getBoundingClientRect().height; };
     if(heightAt(1) <= avail) return;
     // Zooming out also widens the text lines (fewer wraps), so height does
@@ -4137,13 +4137,14 @@ function rTimeSheet(m){
   '<div class="card ts-sheet">'+
     '<div class="ts-sheet-title"><span>Client: <span class="ts-dots">'+'.'.repeat(60)+'</span></span><span>Plate no <b>'+esc(fuelPlate(eq))+'</b></span><span>'+esc(eq.name||'')+'</span><span>Period <b>'+esc(tsPeriod(tsFilter.month, tsFilter.half))+'</b></span><b class="ts-word">TIME SHEET</b></div>'+
     '<div class="ts-wrap"><table class="tbl ts-grid"><thead><tr>'+
-      '<th>Date</th><th>Day</th><th>Site / Location</th><th>Start Time</th><th>Site Supervisor</th><th>Sign Supervisor</th><th>Driver Name</th><th>Driver Signature</th><th>Petrol Date</th><th>KM</th>'+
+      '<th>Date</th><th>Day</th><th>Site / Location</th><th>Start Time</th><th>End Time</th><th>Site Supervisor</th><th>Sign Supervisor</th><th>Driver Name</th><th>Driver Signature</th><th>Petrol Date</th><th>KM</th>'+
     '</tr></thead><tbody>'+
     tsDays(tsFilter.month, tsFilter.half).map(d=>{
       const r = tsRow(eq, d), dis = edit ? '' : ' disabled';
       const inp = (k, type, v)=>'<input class="ts-in" type="'+type+'" data-d="'+d+'" data-k="'+k+'" value="'+esc(v==null?'':String(v))+'"'+dis+'>';
       return '<tr><td>'+fdate(d)+'</td><td>'+tsDayName(d)+'</td>'+
         '<td>'+inp('site','text',r.site)+'</td>'+
+        '<td class="ts-sign"></td>'+
         '<td class="ts-sign"></td>'+
         '<td>'+inp('supervisor','text',r.supervisor)+'</td>'+
         '<td class="ts-sign"></td>'+
@@ -4175,7 +4176,7 @@ function rTimeSheet(m){
 function printTimeSheet(eq, month, half){
   const rows = tsDays(month, half).map(d=>{
     const r = tsRow(eq, d);
-    return '<tr><td>'+fdate(d)+'</td><td>'+tsDayName(d)+'</td><td class="l">'+esc(r.site)+'</td><td></td>'+
+    return '<tr><td>'+fdate(d)+'</td><td>'+tsDayName(d)+'</td><td class="l">'+esc(r.site)+'</td><td></td><td></td>'+
       '<td class="l">'+esc(r.supervisor)+'</td><td></td><td></td><td></td>'+
       '<td></td><td></td></tr>';
   }).join('');
@@ -4186,11 +4187,11 @@ function printTimeSheet(eq, month, half){
   printDoc('<div class="doc landscape tsp">'+appHeaderHTML()+
     '<div class="tsp-title"><span>Client: '+'.'.repeat(60)+'</span><span>Plate no: <b>'+esc(fuelPlate(eq))+'</b></span><span>'+esc(eq.name||'')+'</span><span>Period: <b>'+esc(tsPeriod(month, half))+'</b></span><b class="ts-word">TIME SHEET</b></div>'+
     '<table class="tsp-table"><thead><tr>'+
-      '<th style="width:9%">Date</th><th style="width:8%">Day</th><th style="width:17%">Site / Location</th><th style="width:7%">Start Time</th>'+
-      '<th style="width:12%">Site Supervisor</th><th style="width:9%">Sign Supervisor</th><th style="width:11%">Driver Name</th>'+
-      '<th style="width:9%">Driver Signature</th><th style="width:10%">Petrol Date</th><th style="width:8%">KM</th>'+
+      '<th style="width:9%">Date</th><th style="width:7%">Day</th><th style="width:14%">Site / Location</th><th style="width:7%">Start Time</th><th style="width:7%">End Time</th>'+
+      '<th style="width:11%">Site Supervisor</th><th style="width:9%">Sign Supervisor</th><th style="width:10%">Driver Name</th>'+
+      '<th style="width:9%">Driver Signature</th><th style="width:9%">Petrol Date</th><th style="width:8%">KM</th>'+
     '</tr></thead><tbody>'+rows+'</tbody></table>'+
-    appFooterHTML()+'</div>', true);
+    appFooterHTML()+'</div>', true, {onePage:true});
 }
 function fuelForm(f, presetEq){
   const isNew = !f;
