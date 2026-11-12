@@ -37,18 +37,20 @@ jobs:
           disable-animations: true
           script: |
             adb install -r android/dist/FlameCTS-Android.apk
+            sleep 30
             adb logcat -c
-            adb shell am start -n com.flamects.cts/.MainActivity --ez selftest true
-            sleep 20
+            adb shell am start -n com.flamects.cts/.MainActivity
+            sleep 25
             adb exec-out screencap -p > shot1.png
             echo "SHOT1_BEGIN $(base64 -w0 shot1.png) SHOT1_END"
-            sleep 40
+            adb shell uiautomator dump /sdcard/u.xml > /dev/null; adb shell cat /sdcard/u.xml | tr '>' '\n' | grep -oE '(text|class)="[^"]+"' | head -40
+            adb shell am force-stop com.flamects.cts
+            adb shell am start -n com.flamects.cts/.MainActivity --ez selftest true
+            sleep 25
             adb exec-out screencap -p > shot.png
             echo "SHOT_BEGIN $(base64 -w0 shot.png) SHOT_END"
-            adb shell dumpsys activity activities | grep -E "ResumedActivity|topResumed" | head -5
-            adb shell uiautomator dump /sdcard/u.xml > /dev/null; adb shell cat /sdcard/u.xml | tr '>' '\n' | grep -oE '(text|content-desc|class|bounds)="[^"]*"' | head -60
-            adb shell dumpsys SurfaceFlinger --list | head -20
-            adb logcat -d | grep -iE "SELFTEST|FlameCTS|flamects|AndroidRuntime|FATAL|Uncaught|CONSOLE|lowmemory|has died" | tail -80
+            adb shell dumpsys activity activities | grep -E "topResumedActivity" | head -2
+            adb logcat -d | grep -iE "SELFTEST|FlameCTS|AndroidRuntime|FATAL|CONSOLE|Killing.*flamects" | tail -40
             adb logcat -d | grep -q "SELFTEST pdf ok"
       - name: Attach it to the release
         env:
