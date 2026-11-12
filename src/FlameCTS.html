@@ -525,6 +525,13 @@ a{color:var(--fl2)}
 #main.page-wide{max-width:none}
 .app-header{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:14px;background:linear-gradient(90deg,#e8611f 0%,#7a3210 42%,#000 68%,#000 100%);border-radius:var(--r);box-shadow:0 2px 4px rgba(33,26,20,.14),0 12px 28px rgba(33,26,20,.2);padding:14px 20px;margin-bottom:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .app-header-logo-img{flex:none;width:56px;height:56px;object-fit:contain;display:block;position:relative;z-index:1}
+.lh-sheet{background:#fff;color:#111;width:100%;max-width:210mm;min-height:297mm;margin:0 auto 24px;padding:8mm;border:1px solid var(--line);border-radius:6px;box-shadow:0 2px 4px rgba(33,26,20,.08),0 14px 34px rgba(33,26,20,.14);display:flex;flex-direction:column}
+.lh-sheet .app-header{box-shadow:none}
+.lh-sheet .lh-body{flex:1 1 auto;min-height:120mm;padding:4mm 2mm;font-size:13.5px;line-height:1.6;outline:none;overflow-wrap:anywhere;cursor:text}
+.lh-sheet .lh-body:empty:before{content:attr(data-ph);color:#a79f92}
+.lh-sheet .lh-foot{margin-top:auto!important}
+.lh-body ul,.lh-body ol{margin:6px 0;padding-left:22px}
+.lh-tools{position:sticky;top:0;z-index:5;background:var(--bg);padding:8px 0;margin-bottom:10px;align-items:center}
 .app-header-body{position:relative;z-index:1;min-width:0}
 .app-header-name{position:relative;z-index:1;font-family:'Sora';font-size:18.5px;font-weight:800;letter-spacing:-.1px;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.15)}
 .app-header-tag{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.92);margin-top:4px;position:relative;z-index:1}
@@ -930,6 +937,9 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
   .doc{max-width:190mm;margin:0 auto;padding:6mm 0}
   .doc.landscape{max-width:281mm;padding:2mm 0}
   .doc.qtnp{max-width:none;padding:0}
+  .doc.lhp{display:flex;flex-direction:column;min-height:277mm}
+  .doc.lhp .lh-body{flex:1 1 auto;padding:4mm 2mm;font-size:12.5px;line-height:1.6;overflow-wrap:anywhere}
+  .doc.lhp .lh-foot{margin-top:auto!important}
   .doc-head{display:flex;align-items:center;gap:14px;border-bottom:3px solid #d9331f;padding-bottom:12px;margin-bottom:16px}
   .doc-head img{width:58px;height:58px}
   .doc-head h1{font-size:20px;margin:0}
@@ -2053,6 +2063,7 @@ const ICONS = {
   set:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34h.01A1.7 1.7 0 0 0 10 3.09V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55h.01a1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87v.01a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z"/></svg>',
   mc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 9v11"/><path d="M11.5 13h6M11.5 16.5h4"/></svg>',
   tsheet:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
+  lhead:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 8h16M4 17h16M8 12h8"/></svg>',
   fuel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 22V4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v18"/><path d="M3 10h9"/><path d="M14 8.5l3 2v7a1.5 1.5 0 0 0 3 0V10a2 2 0 0 0-.6-1.4L17 6.2"/><path d="M2 22h13"/></svg>'
 };
 const NAV = [
@@ -2085,6 +2096,7 @@ const NAV = [
   {id:'contacts', t:'Contacts', ic:'contact'},
   {id:'fuel', t:'Petrol Tracking', ic:'fuel'},
   {id:'timesheet', t:'Time Sheet', ic:'tsheet'},
+  {id:'letterhead', t:'Letter Head', ic:'lhead'},
   {sec:'Administration'},
   {id:'mastercode', t:'Master Code', ic:'mc'},
   {id:'users', t:'Users & Roles', ic:'usr'},
@@ -2420,7 +2432,7 @@ function render(){
   $('#main').classList.toggle('page-wide', PAGE==='ledger' || PAGE==='fuel' || PAGE==='timesheet');
   const fn = ({dashboard:rDashboard, enquiries:rEnquiries, bookings:rBookings, contacts:rContacts,
     ledger:rLedger, trialbalance:rTrialBalance, detailedtb:rDetailedTrialBalance, tbchart:rTBChartOfAccounts, placcount:rProfitLossAccount, cashflow:rCashFlow, arcostcentre:rReceivableAging, plsummary:rPLSummary, costexpense:rCostExpenseReports, quotations:rQuotations, invoices:rInvoices, receipts:rReceipts, payments:rPayments, balancesheet:rBalanceSheet,
-    followups:rFollowups, reminders:rReminders, users:rUsers, settings:rSettings, mastercode:rMasterCode, masteredit:rMasterEdit, pendingapproval:rPendingApproval, fuel:rFuel, timesheet:rTimeSheet})[PAGE] || rDashboard;
+    followups:rFollowups, reminders:rReminders, users:rUsers, settings:rSettings, mastercode:rMasterCode, masteredit:rMasterEdit, pendingapproval:rPendingApproval, fuel:rFuel, timesheet:rTimeSheet, letterhead:rLetterHead})[PAGE] || rDashboard;
   fn($('#main'));
   populateCustomerDatalist();
 }
@@ -6477,15 +6489,8 @@ const DEFAULT_QTN_TERMS = [
 function qtnTerms(q){ return Array.isArray(q.terms) ? q.terms : DEFAULT_QTN_TERMS; }
 function printQuotation(q, opts){
   const tot = q.items.reduce((a,i)=>a+i.qty*(i.days||1)*i.rate,0);
-  const cr = S.meta.crNo || '—', cl = S.meta.clNo || '—';
-  const SLOGAN = 'Powering Trade · Building the Future';
   printDoc('<div class="doc qtnp">'+
-    '<div class="app-header" style="margin-bottom:16px">'+
-      '<div class="app-header-body"><div class="app-header-name">'+esc(S.meta.company)+'</div>'+
-      '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:13px;font-weight:600;color:#fff">'+SLOGAN+'</div>'+
-      '<div class="app-header-tag" style="letter-spacing:.03em;font-size:12px;color:#fff;margin-top:5px">CR No. '+esc(cr)+'&nbsp;&nbsp;·&nbsp;&nbsp;CL No. '+esc(cl)+'</div></div>'+
-      '<img class="app-header-logo-img" style="width:66px;height:66px" src="'+LOGO+'" alt="">'+
-    '</div>'+
+    letterBandTop()+
     '<div class="doc-title" style="text-align:right;margin:0 0 16px"><b>QUOTATION</b><div>'+esc(q.no)+'</div><div>Date: '+fdate(q.date)+'</div></div>'+
     '<p style="margin:16px 0"><b>Quotation for:</b> '+esc(q.company)+(q.attn?' — Attn: '+esc(q.attn):'')+'</p>'+
     '<table><tr><th style="width:48%">Description</th><th style="text-align:center">Qty</th><th style="text-align:center">Period</th><th style="text-align:center">Rate</th><th style="text-align:center">Duration</th><th style="text-align:center">Total Amount ('+CUR+')</th></tr>'+
@@ -6498,15 +6503,98 @@ function printQuotation(q, opts){
       '<p style="margin:10px 0 0">We trust the above terms meet your approval. Should you require any further clarification or additional information, please feel free to contact us.</p>'+
     '</div>'+
     sigBlock(q.attachSeal, q.attachSign)+
-    '<div class="app-header" style="margin-top:14px;margin-bottom:0;page-break-inside:avoid;break-inside:avoid">'+
+    letterBandFoot()+
+    '</div>', false, {onePage:true, noPrint:!!(opts&&opts.noPrint)});
+}
+// The header and footer bands printed on a quotation, shared with the
+// Business / Letter Head page so both always carry the same design.
+const LETTER_SLOGAN = 'Powering Trade · Building the Future';
+function letterBandTop(){
+  const cr = S.meta.crNo || '—', cl = S.meta.clNo || '—';
+  return '<div class="app-header" style="margin-bottom:16px">'+
       '<div class="app-header-body"><div class="app-header-name">'+esc(S.meta.company)+'</div>'+
-      '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:13px;font-weight:600;color:#fff;margin-top:4px">'+SLOGAN+'</div>'+
+      '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:13px;font-weight:600;color:#fff">'+LETTER_SLOGAN+'</div>'+
+      '<div class="app-header-tag" style="letter-spacing:.03em;font-size:12px;color:#fff;margin-top:5px">CR No. '+esc(cr)+'&nbsp;&nbsp;·&nbsp;&nbsp;CL No. '+esc(cl)+'</div></div>'+
+      '<img class="app-header-logo-img" style="width:66px;height:66px" src="'+LOGO+'" alt="">'+
+    '</div>';
+}
+function letterBandFoot(){
+  return '<div class="app-header lh-foot" style="margin-top:14px;margin-bottom:0;page-break-inside:avoid;break-inside:avoid">'+
+      '<div class="app-header-body"><div class="app-header-name">'+esc(S.meta.company)+'</div>'+
+      '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:13px;font-weight:600;color:#fff;margin-top:4px">'+LETTER_SLOGAN+'</div>'+
       '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:12.5px;color:#fff;margin-top:3px"><b>Tel:</b> +974 55400916 / 55400906</div>'+
       '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:12.5px;color:#fff;margin-top:3px"><b>Email:</b> <a href="mailto:sales@flamects.com" style="color:inherit;text-decoration:none">sales@flamects.com</a>'+
         '&nbsp;&nbsp;·&nbsp;&nbsp;<b>Web:</b> <a href="https://www.flamects.com" style="color:inherit;text-decoration:none">www.flamects.com</a></div></div>'+
       '<img class="app-header-logo-img" style="width:82px;height:82px" src="'+LOGO+'" alt="">'+
-    '</div>'+
-    '</div>', false, {onePage:true, noPrint:!!(opts&&opts.noPrint)});
+    '</div>';
+}
+
+/* ---------------- LETTER HEAD ---------------- */
+// Business / Letter Head: a blank sheet with the quotation's header and
+// footer bands and a free-typing area between them. What is typed is kept
+// on this PC as a draft until Clear is pressed; Print / PDF puts it on one
+// A4 page with the footer at the bottom of the page.
+const LH_DRAFT_KEY = 'flame_letterhead_draft_v1';
+// Only plain formatting is kept from a saved draft or a paste.
+function lhClean(html){
+  const ok = {B:1,STRONG:1,I:1,EM:1,U:1,BR:1,DIV:1,P:1,SPAN:1,UL:1,OL:1,LI:1,FONT:1,H1:1,H2:1,H3:1};
+  // Parsed in a separate, inactive document so nothing in it loads or runs.
+  const box = new DOMParser().parseFromString('<div>'+String(html||'')+'</div>', 'text/html').body.firstChild;
+  box.querySelectorAll('script,style,iframe,object,embed,link,meta,img,svg,form,input,button').forEach(n=>n.remove());
+  box.querySelectorAll('*').forEach(n=>{
+    [...n.attributes].forEach(a=>{
+      const nm = a.name.toLowerCase();
+      if(nm==='style'){ const ta=n.style.textAlign, fs=n.style.fontSize; n.removeAttribute('style'); if(ta) n.style.textAlign=ta; if(fs) n.style.fontSize=fs; }
+      else if(!(nm==='size' && n.tagName==='FONT')) n.removeAttribute(a.name);
+    });
+    if(!ok[n.tagName]) n.replaceWith(...n.childNodes);
+  });
+  return box.innerHTML;
+}
+function lhDraftRead(){ try{ return lhClean(localStorage.getItem(LH_DRAFT_KEY)||''); }catch(e){ return ''; } }
+function lhDraftWrite(html){ try{ if(html) localStorage.setItem(LH_DRAFT_KEY, html); else localStorage.removeItem(LH_DRAFT_KEY); }catch(e){} }
+function printLetterHead(bodyHtml){
+  return printDoc('<div class="doc qtnp lhp">'+letterBandTop()+
+    '<div class="lh-body">'+lhClean(bodyHtml)+'</div>'+
+    letterBandFoot()+'</div>', false, {onePage:true});
+}
+function rLetterHead(m){
+  const edit = can('letterhead','edit');
+  const tools = [['bold','<b>B</b>','Bold'],['italic','<i>I</i>','Italic'],['underline','<u>U</u>','Underline'],
+    ['insertUnorderedList','• List','Bullet list'],['insertOrderedList','1. List','Numbered list'],
+    ['justifyLeft','Left','Align left'],['justifyCenter','Centre','Align centre'],['justifyRight','Right','Align right']];
+  m.innerHTML = pageHead('Business','Letter Head',
+    '<button class="btn fire" id="lh-print">Print / PDF</button> '+(edit?'<button class="btn" id="lh-clear">Clear</button>':''))+
+  (edit?'<div class="filters lh-tools">'+
+    tools.map(t=>'<button type="button" class="btn sm" data-cmd="'+t[0]+'" title="'+t[2]+'">'+t[1]+'</button>').join('')+
+    '<select id="lh-size" title="Text size" style="width:auto"><option value="">Text size</option><option value="2">Small</option><option value="3">Normal</option><option value="5">Large</option><option value="6">Heading</option></select>'+
+    '<span class="tiny">Kept on this PC until you press Clear.</span>'+
+  '</div>':'')+
+  '<div class="lh-sheet">'+letterBandTop()+
+    '<div class="lh-body" id="lh-body"'+(edit?' contenteditable="true"':'')+' data-ph="Type your letter here…"></div>'+
+    letterBandFoot()+
+  '</div>';
+  const body = $('#lh-body');
+  body.innerHTML = lhDraftRead();
+  let t = null;
+  const keep = ()=>{ clearTimeout(t); t = setTimeout(()=>lhDraftWrite(body.innerText.trim() ? body.innerHTML : ''), 300); };
+  body.addEventListener('input', keep);
+  // Paste as plain text so the letter keeps one clean style.
+  body.addEventListener('paste', e=>{
+    e.preventDefault();
+    const txt = (e.clipboardData || window.clipboardData).getData('text/plain');
+    document.execCommand('insertText', false, txt);
+  });
+  $$('.lh-tools [data-cmd]', m).forEach(b=>{
+    b.addEventListener('mousedown', e=>e.preventDefault());   // keep the typing cursor where it is
+    b.onclick = ()=>{ body.focus(); document.execCommand(b.dataset.cmd, false, null); keep(); };
+  });
+  const sz = $('#lh-size'); if(sz) sz.onchange = ()=>{ if(sz.value){ body.focus(); document.execCommand('fontSize', false, sz.value); keep(); } sz.value=''; };
+  $('#lh-print').onclick = ()=>printLetterHead(body.innerHTML);
+  const cl = $('#lh-clear'); if(cl) cl.onclick = ()=>{
+    if(!body.innerText.trim()){ body.innerHTML=''; lhDraftWrite(''); return; }
+    confirmDlg('Clear the letter and start with a blank sheet?', ()=>{ body.innerHTML=''; lhDraftWrite(''); body.focus(); });
+  };
 }
 // Share a quotation (Sample or Previous) on WhatsApp or by email. In the
 // desktop app the quotation is saved as a PDF in Documents\Flame CTS\
@@ -8465,6 +8553,9 @@ async function boot(){
       // New Business / Time Sheet page -- same access as Petrol Tracking.
       if(S.perms.Manager && S.perms.Manager.timesheet===undefined) S.perms.Manager.timesheet = S.perms.Manager.fuel || 'edit';
       if(S.perms.Staff && S.perms.Staff.timesheet===undefined) S.perms.Staff.timesheet = S.perms.Staff.fuel || 'edit';
+      // Business / Letter Head -- same access as Quotations.
+      if(S.perms.Manager && S.perms.Manager.letterhead===undefined) S.perms.Manager.letterhead = S.perms.Manager.quotations || 'edit';
+      if(S.perms.Staff && S.perms.Staff.letterhead===undefined) S.perms.Staff.letterhead = S.perms.Staff.quotations || 'edit';
       // Master Edit takes over the per-row "Edit" that used to live on
       // General Ledger itself -- an existing install's Manager/Staff role
       // could already edit ledger entries, so carry that same level over
