@@ -2169,6 +2169,8 @@ const NAV = [
   {id:'settings', t:'Settings & Backup', ic:'set'}
 ];
 let PAGE = 'dashboard';
+// True inside the Android app (its shim sets flameDesktop.android before the page runs).
+const ANDROID_APP = !!(window.flameDesktop && window.flameDesktop.android);
 const chartReg = [];
 function killCharts(){ while(chartReg.length){ try{ chartReg.pop().destroy(); }catch(e){} } }
 
@@ -2623,6 +2625,9 @@ function rDashboard(m){
       '<div class="dx-chart-w">'+chart+'<div class="dx-tip" id="dx-tip"></div></div></div>'+
     '<div class="card dx-card dx-quick"><div class="dx-card-h"><div><h3>Quick access</h3><div class="tiny">Jump straight in</div></div></div><div class="dx-tiles">'+tiles+'</div></div>'+
   '</div>'+
+  // The Android app leaves out Watch & Read and Tenders & business
+  // requirements (PC only).
+  (ANDROID_APP ? '' :
   '<div class="db-row2">'+
     '<div class="card db-card db-news"><div class="db-card-h"><span class="db-ic">'+ICONS.stat+'</span><h3>Watch &amp; Read</h3>'+
       '<div class="db-tabs">'+WR_TABS.map(t=>'<button data-wtab="'+t[0]+'"'+(wrTab===t[0]?' class="on"':'')+'>'+t[1]+'</button>').join('')+'</div>'+
@@ -2637,7 +2642,7 @@ function rDashboard(m){
         '<span class="db-portal-go">Open ↗</span></a>').join('')).join('')+
     '</div>'+
     '</div>'+
-  '</div>'+
+  '</div>')+
   '</div>';
 
   // Chart hover: one tooltip per month.
@@ -2666,9 +2671,12 @@ function rDashboard(m){
 
   const ne = $('#d-newenq'); if(ne) ne.onclick = ()=>enquiryForm();
   $$('[data-go]',m).forEach(b=>{ b.onclick = ()=>nav(b.dataset.go); b.onkeydown = e=>{ if(e.key==='Enter') nav(b.dataset.go); }; });
-  $$('[data-wtab]',m).forEach(b=>b.onclick=()=>{ wrTab = b.dataset.wtab; $$('[data-wtab]',m).forEach(x=>x.classList.toggle('on', x===b)); showWR(false); });
-  $('#db-news-re').onclick = ()=>{ showWR(true); showDoha(true); };
-  showWR(false); showDoha(false);
+  if(!ANDROID_APP){
+    $$('[data-wtab]',m).forEach(b=>b.onclick=()=>{ wrTab = b.dataset.wtab; $$('[data-wtab]',m).forEach(x=>x.classList.toggle('on', x===b)); showWR(false); });
+    $('#db-news-re').onclick = ()=>{ showWR(true); showDoha(true); };
+    showWR(false);
+  }
+  showDoha(false);
   clearInterval(window.__dbClock);
   window.__dbClock = setInterval(()=>{ const c = document.getElementById('db-clock'); if(!c){ clearInterval(window.__dbClock); return; } c.textContent = dohaTime(); }, 15000);
 }
