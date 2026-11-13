@@ -970,6 +970,52 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
   /* Voucher view: the dense 3-4 column tiles become two columns. */
   .kv-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
   .kv-grid div{white-space:normal!important}
+  /* No scroll box inside the page: lists that are capped to a height on
+     PC (max-height + inner scrollbar) just flow with the page on a phone. */
+  .tbl-wrap:has(>table.m-cards){max-height:none!important;overflow:visible!important}
+}
+.m-filter-btn{display:none}
+/* Finance card (Accounting pages on a phone): codes as chips on top, the
+   account / party as the title, other details small, amounts in a row at
+   the bottom, right-aligned and easy to compare. */
+@media (max-width:760px){
+  table.tbl.m-fin tr{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 6px;padding:12px 14px}
+  table.tbl.m-fin td{flex:1 1 100%;order:4;font-size:12.5px;padding:1px 0!important}
+  table.tbl.m-fin td::before{font-size:10px}
+  table.tbl.m-fin td:first-child{font-weight:inherit}
+  table.tbl.m-fin td.m-date,table.tbl.m-fin td.m-code{order:1;flex:0 0 auto;display:inline-flex;align-items:baseline;gap:4px}
+  table.tbl.m-fin td.m-date{color:var(--muted);font-size:12px;font-weight:600;margin-right:4px}
+  table.tbl.m-fin td.m-date::before{content:none}
+  table.tbl.m-fin td.m-code{background:var(--paper);border:1px solid var(--line);border-radius:6px;padding:1px 7px!important;font-size:11.5px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--ink)}
+  table.tbl.m-fin td.m-code::before{content:attr(data-short);font-size:9px;letter-spacing:.06em;color:var(--muted)}
+  table.tbl.m-fin td.m-title{order:2;display:block;font-size:15px;font-weight:700;line-height:1.3;color:var(--ink);margin-top:2px}
+  table.tbl.m-fin td.m-title::before,table.tbl.m-fin td.m-sub::before{content:none}
+  table.tbl.m-fin td.m-title .tiny{font-weight:500}
+  table.tbl.m-fin td.m-sub{order:3;display:block;font-size:13px;color:var(--ink2);margin-top:-2px}
+  table.tbl.m-fin td.m-amt{order:5;flex:1 1 28%;min-width:28%;display:block;text-align:right!important;margin-top:6px;padding-top:7px!important;border-top:1px dashed var(--line)!important}
+  table.tbl.m-fin td.m-amt::before{display:block;font-size:9.5px;margin-bottom:1px}
+  table.tbl.m-fin td.m-amt .m-v{font-size:15.5px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.2px;white-space:nowrap}
+  table.tbl.m-fin td.m-amt.m-zero .m-v{color:var(--muted)!important;font-weight:500}
+  table.tbl.m-fin td.m-act{order:6;padding-top:8px!important}
+  table.tbl.m-fin td.m-nl{order:2}
+  /* Section headings (Assets, Revenue, Operating Activities ...) and totals. */
+  table.tbl.m-fin tr.m-sec{display:block;padding:9px 14px;background:var(--paper);border-bottom:1px solid var(--line)}
+  table.tbl.m-fin tr.m-sec td{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink2)!important}
+  table.tbl.m-fin td.m-code .m-v>div{display:inline;margin-left:6px;font-weight:500;color:var(--muted)}
+  table.tbl.m-fin tr.m-tot,table.tbl.m-fin>tfoot>tr{background:#f7f2e8}
+  table.tbl.m-fin tr.m-tot td.m-nl,table.tbl.m-fin>tfoot td.m-nl{flex:1 1 100%;font-weight:800;font-size:13.5px}
+  table.tbl.m-fin tr.m-tot td.m-amt .m-v,table.tbl.m-fin>tfoot td.m-amt .m-v{font-size:16.5px}
+  /* Clickable rows (open / edit an entry) show a chevron. */
+  table.tbl.m-fin tr[data-lctx],table.tbl.m-fin tr[style*="cursor:pointer"]{position:relative;padding-right:28px}
+  table.tbl.m-fin tr[data-lctx]::after,table.tbl.m-fin tr[style*="cursor:pointer"]::after{content:"›";position:absolute;right:12px;top:12px;font-size:20px;color:var(--muted)}
+  /* Filters folded behind one button; search stays visible. */
+  .m-filter-btn{display:inline-flex;align-items:center;gap:8px;width:100%;justify-content:flex-start;margin:0 0 8px;padding:9px 12px;font-weight:600}
+  .m-filter-btn i{font-style:normal;font-size:11px;background:#fde7d6;color:#b4471a;border-radius:10px;padding:1px 8px}
+  .m-filter-btn b{margin-left:auto;color:var(--muted)}
+  .filters.m-fold:not(.m-open)>*:not(input[type=search]){display:none!important}
+  .filters.m-fold:not(.m-open):not(:has(>input[type=search])){display:none!important}
+  /* Page buttons smaller so they take one or two lines, not three. */
+  .page-actions .btn{padding:7px 11px;font-size:12.5px}
 }
 .contact-actions a.wa{background:#25d366;color:#fff}
 .contact-actions a.wa:hover{background:#1ebe5a}
@@ -2567,30 +2613,90 @@ function mobileCards(root){
     const rows = [];
     [...t.tBodies].forEach(b=>rows.push(...b.rows));
     if(t.tFoot) rows.push(...t.tFoot.rows);
+    // Accounting pages get the finance card (see the m-fin CSS): codes as
+    // chips, the account / party name as the title, amounts lined up at
+    // the bottom. Each cell gets a role class; other pages ignore them.
+    const fin = MOBILE_FIN_PAGES.has(PAGE);
+    const isAmtLabel = l => /debit|credit|balance|amount|\bnet\b|total|\(qar\)|qar|days|%|cost|opening|closing|outstanding|value|rate/i.test(l);
+    const isCodeLabel = l => /code$|^sl$|^ref\b|^no\.?$|invoice( no)?$|receipt no|payment no|voucher|^txn/i.test(l);
+    const isDateLabel = l => /date|^when$|^due$|^as of/i.test(l);
+    const isNameLabel = l => /name|account|activity|customer|party|particulars|description|module|reminder|subject|company|cost centre|category|type/i.test(l);
     rows.forEach(tr=>{
-      let col = 0;
+      let col = 0, titled = false, cells = 0;
       [...tr.cells].forEach(td=>{
         const span = td.colSpan||1;
         const hasCtl = td.querySelector('button,a.btn,input,select,textarea');
         const text = td.textContent.replace(/\s+/g,' ').trim();
+        const lab = labels[col]||'';
+        cells++;
         if(span>1) td.classList.add('m-nl');
         else if(!text && !hasCtl && !td.querySelector('img,svg')) td.classList.add('m-empty');
-        else if(hasCtl && !td.querySelector('input,select,textarea') && /^(actions?)?$/i.test(labels[col]||'')) td.classList.add('m-act');
-        else if(labels[col]){
-          td.setAttribute('data-label', labels[col]);
+        else if(hasCtl && !td.querySelector('input,select,textarea') && /^(actions?)?$/i.test(lab)) td.classList.add('m-act');
+        else if(lab){
+          td.setAttribute('data-label', lab);
           // The value goes in one box beside its label (the nodes are moved,
           // so click handlers on them keep working).
           const v = document.createElement('div'); v.className = 'm-v';
           while(td.firstChild) v.appendChild(td.firstChild);
           td.appendChild(v);
+          if(fin){
+            const numeric = /^[-+−–]?\s*(QAR\s*)?[-+−–]?[\d,]+(\.\d+)?\s*%?$|^[—–-]$/.test(text);
+            if((isAmtLabel(lab) || td.classList.contains('r')) && numeric){
+              td.classList.add('m-amt');
+              if(/^[-−–]?\s*(QAR\s*)?0(\.0+)?$|^[—–-]$/.test(text)) td.classList.add('m-zero');
+            }
+            else if(isDateLabel(lab) && text.length<=24) td.classList.add('m-date');
+            else if(isCodeLabel(lab) && text.length<=24 && !/\s{2,}/.test(text)){
+              td.classList.add('m-code');
+              td.setAttribute('data-short', lab.replace(/\s*code$/i,'').replace(/\s*no\.?$/i,'').trim() || lab);
+            }
+            else if(isNameLabel(lab) && !titled){ td.classList.add('m-title'); titled = true; }
+            else if(/name$/i.test(lab)) td.classList.add('m-sub');
+          }
         }
         else td.classList.add('m-nl');
         col += span;
       });
+      if(fin){
+        const first = tr.cells[0], ft = first ? first.textContent.trim() : '';
+        if(cells===1 && first && first.colSpan>1 && !first.querySelector('.empty')) tr.classList.add('m-sec');
+        else if(/^(total|subtotal|grand total|net |balance c\/f|closing)/i.test(ft)) tr.classList.add('m-tot');
+      }
     });
     t.classList.add('m-cards');
+    if(fin) t.classList.add('m-fin');
   });
+  // Accounting pages on a phone: the filters fold behind one "Filters"
+  // button (showing how many are set) so the figures come first.
+  if(MOBILE_FIN_PAGES.has(PAGE)) foldFilters(root||document);
 }
+// One "Filters" button per page folds every filter row that has a date,
+// dropdown or second search box; the main search box stays visible.
+function foldFilters(root){
+  const main = root.querySelector ? (root.id==='main' ? root : root.querySelector('#main')) : null;
+  if(!main) return;
+  const blocks = [...main.querySelectorAll('.filters:not(.m-fold)')].filter(f=>f.querySelector('select,input[type=date],input[type=month],input[type=search]'));
+  if(!blocks.length) return;
+  let b = main.querySelector('.m-filter-btn');
+  const all = ()=>[...main.querySelectorAll('.filters.m-fold')];
+  const today = todayISO();
+  const count = ()=>all().reduce((n,f)=>n+[...f.querySelectorAll('input:not([type=checkbox]):not([type=search]),select')]
+    .filter(x=>x.tagName==='SELECT' ? x.selectedIndex>0 : (x.value && x.value!==today)).length, 0);
+  const open = ()=>main.dataset.mFilters==='open';
+  const label = ()=>{ const n = count(); b.innerHTML = '<span>⚲ Filters</span>'+(n?'<i>'+n+' set</i>':'')+'<b>'+(open()?'▴':'▾')+'</b>'; };
+  const apply = ()=>{ all().forEach(f=>f.classList.toggle('m-open', open())); label(); };
+  blocks.forEach(f=>{ f.classList.add('m-fold'); f.addEventListener('change', ()=>label()); });
+  if(!b){
+    b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn m-filter-btn';
+    b.onclick = ()=>{ main.dataset.mFilters = open() ? '' : 'open'; apply(); };
+    blocks[0].parentNode.insertBefore(b, blocks[0]);
+    main.dataset.mFilters = count() ? 'open' : '';
+  }
+  apply();
+}
+// Pages that get the finance card and folded filters on a phone.
+const MOBILE_FIN_PAGES = new Set(['ledger','trialbalance','balancesheet','detailedtb','tbchart','placcount','cashflow','arcostcentre','plsummary','costexpense','masteredit','invoices','receipts','payments','pendingapproval']);
 (function(){
   const main = document.getElementById('main');
   if(!main || !window.MutationObserver) return;
