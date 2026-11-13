@@ -943,6 +943,34 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
 .contact-actions{display:flex;gap:6px;flex:none}
 .contact-actions a{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:var(--paper);color:var(--ink2);text-decoration:none;font-size:14px}
 .contact-actions a:hover{background:var(--line)}
+/* Phone card view for tables (see mobileCards()): one card per row,
+   column name beside each value, nothing hidden off to the right. */
+@media (max-width:760px){
+  .tbl-wrap:has(>table.m-cards){overflow:visible}
+  table.tbl.m-cards{display:block;min-width:0!important;width:100%!important;table-layout:auto!important;border:0!important;background:transparent}
+  table.tbl.m-cards>thead{display:none}
+  table.tbl.m-cards>tbody,table.tbl.m-cards>tfoot{display:block}
+  table.tbl.m-cards tr{display:block;padding:10px 14px;border-bottom:1px solid var(--line)}
+  table.tbl.m-cards>tbody>tr:last-child{border-bottom:0}
+  table.tbl.m-cards>tfoot>tr{background:#fbfaf7;border-top:2px solid var(--line)}
+  table.tbl.m-cards td{display:grid;grid-template-columns:38% minmax(0,1fr);column-gap:10px;align-items:baseline;position:static!important;padding:3px 0!important;border:0!important;background:none!important;white-space:normal!important;overflow:visible!important;overflow-wrap:anywhere;text-align:left!important;width:auto!important;max-width:none!important;height:auto!important;font-size:13.5px;line-height:1.35}
+  table.tbl.m-cards td::before{content:attr(data-label);font-size:10.5px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);line-height:1.3;overflow-wrap:anywhere}
+  table.tbl.m-cards td.m-nl{display:block}
+  /* Totals boxes: two per row on a phone so long amounts fit. */
+  .gl-kpis .kpi{flex:1 1 calc(50% - 4px)!important}
+  table.tbl.m-cards td.m-nl::before,table.tbl.m-cards td.m-act::before{content:none}
+  table.tbl.m-cards td.m-empty{display:none}
+  table.tbl.m-cards td.m-act{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 2px!important}
+  table.tbl.m-cards td>.empty{position:static;width:auto;padding:24px 8px}
+  table.tbl.m-cards td input,table.tbl.m-cards td select{max-width:100%}
+  table.tbl.m-cards td:first-child{font-weight:600}
+  /* Lists with filters: search on its own line, the rest two per row. */
+  .filters input[type=search]{flex:1 1 100%}
+  .filters select,.filters input[type=date],.filters input[type=month]{flex:1 1 calc(50% - 4px)}
+  /* Voucher view: the dense 3-4 column tiles become two columns. */
+  .kv-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .kv-grid div{white-space:normal!important}
+}
 .contact-actions a.wa{background:#25d366;color:#fff}
 .contact-actions a.wa:hover{background:#1ebe5a}
 @media (max-width:920px){ .contact-actions{gap:8px} .contact-actions a{width:40px;height:40px;font-size:16px} }
@@ -2509,6 +2537,69 @@ const VEHICLE_ACCOUNTS = [
 // Equipment Listings page is visible throughout Operations/Booking Management too.
 function eqStatusTag(id){ const e = S.equipment.find(x=>x.id===id); return (e && e.status && e.status!=='Available') ? ' '+statusChip(e.status) : ''; }
 
+/* ---------------- phone card view for tables ----------------
+   On a phone (CSS below, max-width 760px) every list/report table on a
+   page is shown as a stack of cards: one card per row, each value with
+   its column name beside it, so nothing is hidden off to the right.
+   This only labels the cells (data-label from the table's header); the
+   CSS decides when the card look applies, so PC is unchanged. Re-runs
+   whenever a page redraws a table (filters, tabs, search). */
+function mobileCards(root){
+  (root||document).querySelectorAll('#main table.tbl:not(.m-cards)').forEach(t=>{
+    if(t.classList.contains('ts-grid') || t.closest('.fl-grid')) return;
+    if(!t.tHead || !t.tHead.rows.length) return;
+    // Column names: the lowest header cell over each column (handles
+    // two-row headers with rowspan / colspan).
+    const labels = [], taken = [];
+    [...t.tHead.rows].forEach((hr, r)=>{
+      let col = 0;
+      [...hr.cells].forEach(th=>{
+        while(taken[r] && taken[r][col]) col++;
+        const txt = th.textContent.replace(/\s+/g,' ').trim();
+        const cs = th.colSpan||1, rs = th.rowSpan||1;
+        for(let i=0;i<cs;i++){
+          labels[col+i] = cs>1 && labels[col+i] ? labels[col+i] : txt;
+          for(let k=1;k<rs;k++){ (taken[r+k] = taken[r+k]||[])[col+i] = true; }
+        }
+        col += cs;
+      });
+    });
+    const rows = [];
+    [...t.tBodies].forEach(b=>rows.push(...b.rows));
+    if(t.tFoot) rows.push(...t.tFoot.rows);
+    rows.forEach(tr=>{
+      let col = 0;
+      [...tr.cells].forEach(td=>{
+        const span = td.colSpan||1;
+        const hasCtl = td.querySelector('button,a.btn,input,select,textarea');
+        const text = td.textContent.replace(/\s+/g,' ').trim();
+        if(span>1) td.classList.add('m-nl');
+        else if(!text && !hasCtl && !td.querySelector('img,svg')) td.classList.add('m-empty');
+        else if(hasCtl && !td.querySelector('input,select,textarea') && /^(actions?)?$/i.test(labels[col]||'')) td.classList.add('m-act');
+        else if(labels[col]){
+          td.setAttribute('data-label', labels[col]);
+          // The value goes in one box beside its label (the nodes are moved,
+          // so click handlers on them keep working).
+          const v = document.createElement('div'); v.className = 'm-v';
+          while(td.firstChild) v.appendChild(td.firstChild);
+          td.appendChild(v);
+        }
+        else td.classList.add('m-nl');
+        col += span;
+      });
+    });
+    t.classList.add('m-cards');
+  });
+}
+(function(){
+  const main = document.getElementById('main');
+  if(!main || !window.MutationObserver) return;
+  let queued = false;
+  new MutationObserver(()=>{
+    if(queued) return; queued = true;
+    requestAnimationFrame(()=>{ queued = false; mobileCards(main); });
+  }).observe(main, {childList:true, subtree:true});
+})();
 function render(){
   buildNav();
   $('#main').style.paddingTop = '';
@@ -7634,7 +7725,7 @@ function viewVoucher(v){
   // is meant to fit on one page with no scrolling, so every field is a
   // small tile laid out in a dense grid instead of a tall stack of rows.
   const kv = (label, valueHtml)=>'<div><div style="font-size:9.5px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--muted);margin-bottom:2px;white-space:nowrap">'+esc(label)+'</div><div style="font-size:13px;font-weight:700;color:var(--text);word-break:break-word">'+valueHtml+'</div></div>';
-  const grid = (cols, cells)=>'<div style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:8px 16px;margin-bottom:10px">'+cells.join('')+'</div>';
+  const grid = (cols, cells)=>'<div class="kv-grid" style="display:grid;grid-template-columns:repeat('+cols+',1fr);gap:8px 16px;margin-bottom:10px">'+cells.join('')+'</div>';
   let mainCells = [
     kv('Voucher No.', esc(v.no)),
     kv('Date', fdate(v.date)),
@@ -7706,7 +7797,7 @@ function viewVoucher(v){
   setCards.push(setBlock(vLabel+' Set 1', v.set1), setBlock(vLabel+' Set 2', v.set2));
   const filledCards = setCards.filter(Boolean);
   if(filledCards.length){
-    html += '<div style="display:grid;grid-template-columns:repeat('+Math.min(filledCards.length,4)+',1fr);gap:8px">'+filledCards.join('')+'</div>';
+    html += '<div class="kv-grid" style="display:grid;grid-template-columns:repeat('+Math.min(filledCards.length,4)+',1fr);gap:8px">'+filledCards.join('')+'</div>';
   }
   const vm = modal((v.kind==='RV'?'Receipt voucher':'Payment voucher')+' — '+v.no, html,
     {saveLabel:null, extraLabel:'Print', onExtra:()=>{ printVoucher(v); }, huge:true, noScroll:true});
