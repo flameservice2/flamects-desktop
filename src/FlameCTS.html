@@ -1020,6 +1020,9 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
 .contact-actions a.wa{background:#25d366;color:#fff}
 .contact-actions a.wa:hover{background:#1ebe5a}
 @media (max-width:920px){ .contact-actions{gap:8px} .contact-actions a{width:40px;height:40px;font-size:16px} }
+/* Small phones (under 360px wide, e.g. 320): tighter contact rows so the
+   name is not squeezed to one word per line next to the three buttons. */
+@media (max-width:359px){ #ct-list{padding:8px} .contact-row{gap:8px;padding:9px 2px} .contact-avatar{width:32px;height:32px;font-size:12px} .contact-actions{gap:5px} .contact-actions a{width:36px;height:36px;font-size:14px} }
 
 #bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:59;background:var(--ink);padding:6px 4px calc(6px + env(safe-area-inset-bottom));grid-auto-flow:column;grid-auto-columns:1fr}
 #bottomnav button{background:none;border:0;color:#9d938a;font-size:9.5px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;font-weight:600}
