@@ -813,6 +813,16 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
 .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
 .filters input,.filters select{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;min-width:0}
 .filters input[type=search]{flex:1;min-width:140px}
+.dmy{position:relative;display:inline-flex;align-items:center;min-width:0}
+.f .dmy{display:flex;width:100%}
+.dmy .dmy-t{flex:1;min-width:0;padding-right:36px !important}
+.filters .dmy{flex:0 1 160px}
+.filters .dmy .dmy-t{width:100%}
+.dmy .dmy-b{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:0;background:none;color:var(--muted);cursor:pointer;border-radius:6px}
+.dmy .dmy-b:hover{background:var(--paper);color:inherit}
+.dmy .dmy-p{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
+.dmy .dmy-t.dmy-bad{border-color:var(--bad);background:#fff5f5}
+@media (max-width:640px){ .filters .dmy{flex:1 1 calc(50% - 4px)} }
 
 .f{margin-bottom:12px}
 .f label{display:block;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
@@ -7967,6 +7977,41 @@ function advNames(type){
   });
   return out.slice(0, 300);
 }
+// Dates shown and typed as DD/MM/YYYY whatever the computer's language is
+// set to (a plain <input type="date"> follows Windows and can show
+// MM/DD/YYYY). The text box takes the date; the calendar button opens the
+// phone's or PC's own date picker through a hidden date input.
+const fdmy = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||'')); return m ? m[3]+'/'+m[2]+'/'+m[1] : ''; };
+function dmyToISO(s){
+  const m = /^\s*(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\s*$/.exec(String(s||'')); if(!m) return '';
+  const d = +m[1], mo = +m[2], y = +m[3], dt = new Date(Date.UTC(y, mo-1, d));
+  if(dt.getUTCFullYear()!==y || dt.getUTCMonth()!==mo-1 || dt.getUTCDate()!==d) return '';
+  return dt.toISOString().slice(0,10);
+}
+const DMY_CAL = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+function dmyInputHTML(id, iso, title){
+  return '<span class="dmy"><input id="'+id+'" class="dmy-t" inputmode="numeric" autocomplete="off" placeholder="DD/MM/YYYY" maxlength="10" value="'+fdmy(iso)+'"'+(title?' title="'+esc(title)+'"':'')+'>'+
+    '<button type="button" class="dmy-b" title="Pick a date" aria-label="Pick a date">'+DMY_CAL+'</button>'+
+    '<input type="date" class="dmy-p" tabindex="-1" aria-hidden="true" value="'+(iso||'')+'"></span>';
+}
+// onChange(textInput) runs when a whole valid date is typed or picked, or the box is cleared.
+function wireDmy(root, onChange){
+  root.querySelectorAll('.dmy').forEach(w=>{
+    const t = w.querySelector('.dmy-t'), p = w.querySelector('.dmy-p'), b = w.querySelector('.dmy-b');
+    const check = ()=>{ const ok = !t.value || !!dmyToISO(t.value); t.classList.toggle('dmy-bad', !ok); return ok; };
+    b.onclick = ()=>{ p.value = dmyToISO(t.value) || todayISO(); try{ p.showPicker(); }catch(e){ p.focus(); p.click(); } };
+    p.onchange = ()=>{ if(p.value){ t.value = fdmy(p.value); check(); if(onChange) onChange(t); } };
+    t.oninput = e=>{
+      // Typing 24112026 fills in the slashes: 24/11/2026.
+      if(e && e.inputType && e.inputType.indexOf('insert')===0 && /^[\d\/]*$/.test(t.value) && t.value.indexOf('/')<0){
+        const d = t.value.slice(0,8);
+        t.value = d.slice(0,2)+(d.length>2?'/'+d.slice(2,4):'')+(d.length>4?'/'+d.slice(4):'');
+      }
+      if(check() && onChange && (!t.value || t.value.length>=8)) onChange(t);
+    };
+    t.onblur = check;
+  });
+}
 function rAdvance(m){
   if(!S.advances) S.advances = [];
   if(!ADV_TYPES[advTab]) advTab = 'individual';
@@ -7985,12 +8030,12 @@ function rAdvance(m){
   '<div class="filters">'+
     '<input type="search" id="adv-q" placeholder="Search name, '+(isCo?'CR no':'QID')+', purpose…" value="'+esc(advFilter.q)+'">'+
     '<select id="adv-st"><option value="">All statuses</option>'+['Open','Partially Settled','Settled'].map(s=>'<option'+(advFilter.st===s?' selected':'')+'>'+s+'</option>').join('')+'</select>'+
-    '<input type="date" id="adv-f" value="'+advFilter.from+'"><input type="date" id="adv-t" value="'+advFilter.to+'">'+
+    dmyInputHTML('adv-f', advFilter.from, 'From date')+dmyInputHTML('adv-t', advFilter.to, 'To date')+
   '</div>'+
   '<div id="adv-kpis"></div><div id="adv-list"></div>';
   $$('.tabs .tab',m).forEach(b=>b.onclick=()=>{ advTab=b.dataset.t; render(); });
   const HEAD = ['Advance No','Date', isCo?'Company':'Name', isCo?'CR No':'QID / ID No', isCo?'Contact person':'Mobile', 'Mode','Purpose','Amount '+CUR,'Settled '+CUR,'Balance '+CUR,'Status'];
-  const rowOf = a=>[a.no, fdate(a.date), a.name||'', a.idNo||'', isCo?(a.contact||''):(a.phone||''), a.method||'', a.purpose||'', +a.amount||0, advSettled(a), advBalance(a), advStatus(a)];
+  const rowOf = a=>[a.no, fdmy(a.date), a.name||'', a.idNo||'', isCo?(a.contact||''):(a.phone||''), a.method||'', a.purpose||'', +a.amount||0, advSettled(a), advBalance(a), advStatus(a)];
   const sum = (rows, f)=> round2(rows.reduce((t,a)=>t+f(a),0));
   const draw = ()=>{
     const rows = list();
@@ -8000,7 +8045,7 @@ function rAdvance(m){
       kpi('Settled', money(tSet), '')+
       kpi('Balance outstanding', money(tBal), rows.filter(a=>advBalance(a)>0).length+' open')+'</div>';
     $('#adv-list').innerHTML = tbl(['Advance No','Date',isCo?'Company':'Name',isCo?'CR No':'QID / ID No',isCo?'Contact':'Mobile','Purpose',{t:'Amount',r:1},{t:'Settled',r:1},{t:'Balance',r:1},'Status',''],
-      rows.map(a=>'<tr class="row"><td class="code">'+esc(a.no)+'</td><td>'+fdate(a.date)+'</td><td><b>'+esc(a.name||'')+'</b></td>'+
+      rows.map(a=>'<tr class="row"><td class="code">'+esc(a.no)+'</td><td>'+fdmy(a.date)+'</td><td><b>'+esc(a.name||'')+'</b></td>'+
         '<td>'+esc(a.idNo||'—')+'</td><td>'+esc((isCo?a.contact:a.phone)||'—')+'</td>'+
         '<td title="'+esc(a.purpose||'')+'">'+esc(a.purpose||'—')+'</td>'+
         '<td class="r num">'+fmt(+a.amount||0)+'</td><td class="r num">'+fmt(advSettled(a))+'</td><td class="r num"><b>'+fmt(advBalance(a))+'</b></td>'+
@@ -8024,15 +8069,14 @@ function rAdvance(m){
   const nb = $('#adv-new'); if(nb) nb.onclick = ()=>advanceForm(null);
   $('#adv-q').oninput = e=>{ advFilter.q = e.target.value; draw(); };
   $('#adv-st').onchange = e=>{ advFilter.st = e.target.value; draw(); };
-  $('#adv-f').onchange = e=>{ advFilter.from = e.target.value; draw(); };
-  $('#adv-t').onchange = e=>{ advFilter.to = e.target.value; draw(); };
+  wireDmy($('.filters', m), t=>{ advFilter[t.id==='adv-f'?'from':'to'] = dmyToISO(t.value); draw(); });
   $('#adv-x').onclick = ()=>{ const rows = list();
     exportXLSX('Flame_Advance_Payment_'+ADV_TYPES[advTab]+'.xlsx', [{name:'Advance '+ADV_TYPES[advTab], rows:[HEAD, ...rows.map(rowOf),
       ['','','','','','','Total', sum(rows,a=>+a.amount||0), sum(rows,advSettled), sum(rows,advBalance), '']]}]); };
   $('#adv-p').onclick = ()=>{ const rows = list();
     const cols = ['No','Date', isCo?'Company':'Name', isCo?'CR No':'QID', 'Purpose','Amount','Settled','Balance'];
     exportPDF('Advance Payment — '+ADV_TYPES[advTab], cols,
-      rows.map(a=>[a.no, fdate(a.date), a.name||'', a.idNo||'', a.purpose||'', fmt(+a.amount||0), fmt(advSettled(a)), fmt(advBalance(a))]),
+      rows.map(a=>[a.no, fdmy(a.date), a.name||'', a.idNo||'', a.purpose||'', fmt(+a.amount||0), fmt(advSettled(a)), fmt(advBalance(a))]),
       ['','','','','Total', fmt(sum(rows,a=>+a.amount||0)), fmt(sum(rows,advSettled)), fmt(sum(rows,advBalance))]); };
 }
 function advanceForm(a){
@@ -8043,12 +8087,13 @@ function advanceForm(a){
   const build = (mo)=>{
     const g = id=>val({node:mo}, id);
     const name = g('adv-nm'), amount = round2(numval({node:mo}, 'adv-am')), settled = round2(numval({node:mo}, 'adv-se'));
-    if(!g('adv-dt')){ toast('Date is required.', true); return false; }
+    const dateISO = dmyToISO(g('adv-dt'));
+    if(!dateISO){ toast('Enter the date as DD/MM/YYYY, e.g. 24/11/2026.', true); return false; }
     if(!name){ toast((isCo?'Company':'Name')+' is required.', true); return false; }
     if(!(amount > 0)){ toast('Enter the advance amount.', true); return false; }
     if(settled < 0 || settled > amount){ toast('Settled amount must be between 0 and the advance amount.', true); return false; }
     const rec = isNew ? {id:uid('adv'), type, created:new Date().toISOString(), by:(currentUser()||{}).name||''} : a;
-    Object.assign(rec, {date:g('adv-dt'), name, idNo:g('adv-id'), contact:isCo?g('adv-ct'):'', phone:g('adv-ph'),
+    Object.assign(rec, {date:dateISO, name, idNo:g('adv-id'), contact:isCo?g('adv-ct'):'', phone:g('adv-ph'),
       amount, method:g('adv-md'), ref:g('adv-rf'), purpose:g('adv-pu'), settled, notes:g('adv-no'),
       attachSeal:!!mo.querySelector('#adv-seal').checked, attachSign:!!mo.querySelector('#adv-sign').checked});
     if(isNew){
@@ -8064,7 +8109,7 @@ function advanceForm(a){
   };
   const methods = ['Cash','Cheque','Bank Transfer'];
   const mm = modal((isNew?'New advance payment':'Edit advance '+a.no)+' — '+ADV_TYPES[type],
-    '<div class="frow"><div class="f"><label>Date *</label><input type="date" id="adv-dt" value="'+esc(a.date)+'"></div>'+
+    '<div class="frow"><div class="f"><label>Date * <span class="tiny">(DD/MM/YYYY)</span></label>'+dmyInputHTML('adv-dt', a.date)+'</div>'+
     '<div class="f"><label>'+(isCo?'Company name *':'Name *')+'</label><input id="adv-nm" list="dl-adv-name" autocomplete="off" placeholder="'+(isCo?'e.g. XYZ Trading WLL':'e.g. Mohammed Ali')+'" value="'+esc(a.name)+'"></div></div>'+
     '<datalist id="dl-adv-name">'+advNames(type).map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>'+
     '<div class="frow"><div class="f"><label>'+(isCo?'CR No':'QID / ID No')+'</label><input id="adv-id" value="'+esc(a.idNo||'')+'"></div>'+
@@ -8085,6 +8130,7 @@ function advanceForm(a){
   const am = mm.node.querySelector('#adv-am'), se = mm.node.querySelector('#adv-se'), bal = mm.node.querySelector('#adv-bal');
   const upd = ()=>{ bal.value = fmt(round2((parseFloat(am.value)||0) - (parseFloat(se.value)||0))); };
   am.oninput = upd; se.oninput = upd; upd();
+  wireDmy(mm.node);
 }
 function printAdvance(a){
   if(!a) return;
@@ -8099,7 +8145,7 @@ function printAdvance(a){
       '<div class="app-header-tag" style="letter-spacing:.03em;font-size:12px;color:#fff;margin-top:5px">CR No. '+esc(cr)+'&nbsp;&nbsp;·&nbsp;&nbsp;CL No. '+esc(cl)+'</div></div>'+
       '<img class="app-header-logo-img" style="width:66px;height:66px" src="'+LOGO+'" alt="">'+
     '</div>'+
-    '<div class="doc-title" style="text-align:right;margin:0 0 44px"><b>ADVANCE PAYMENT VOUCHER</b><div>'+esc(a.no)+'</div><div>Date: '+fdate(a.date)+'</div></div>'+
+    '<div class="doc-title" style="text-align:right;margin:0 0 44px"><b>ADVANCE PAYMENT VOUCHER</b><div>'+esc(a.no)+'</div><div>Date: '+fdmy(a.date)+'</div></div>'+
     '<table>'+
       row('Paid to ('+(isCo?'company':'individual')+')', esc(a.name||''))+
       (a.idNo?row(isCo?'CR No':'QID / ID No', esc(a.idNo)):'')+
