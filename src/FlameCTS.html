@@ -6455,6 +6455,18 @@ function drawInvoiceList(host, filterFn, emptyMsg, showRestore){
     });
   });
 }
+// Line-item descriptions already used on invoices (newest first), then on
+// quotations, without repeats -- offered as suggestions while typing a new
+// invoice line so the same wording needn't be typed again.
+function itemDescSuggestions(){
+  const seen = new Set(), out = [];
+  const add = list => list.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).forEach(x=>(x.items||[]).forEach(i=>{
+    const d = String(i.desc||'').trim(), k = d.toLowerCase();
+    if(d && !seen.has(k)){ seen.add(k); out.push(d); }
+  }));
+  add(S.invoices||[]); add(S.quotations||[]);
+  return out.slice(0, 300);
+}
 function invoiceForm(v, fromBk, presetCompany){
   const isNew = !v;
   v = v || {date:todayISO(), customer:fromBk?fromBk.company:(presetCompany||''), attn:fromBk?fromBk.contact:'', bookingId:fromBk?fromBk.id:null,
@@ -6548,8 +6560,9 @@ function invoiceForm(v, fromBk, presetCompany){
     }});
   const readItems = ()=>{ $$('#i-items .it').forEach((r,i)=>{ items[i].desc=r.querySelector('.d').value; items[i].qty=+r.querySelector('.q').value||1; items[i].days=+r.querySelector('.dy').value||1; items[i].rate=+r.querySelector('.r2').value||0; }); };
   const drawItems = ()=>{
-    $('#i-items').innerHTML = items.map((i,n)=>'<div class="it" style="display:grid;grid-template-columns:1fr 64px 64px 100px;gap:7px;margin-bottom:4px">'+
-      '<input class="d" placeholder="Description" value="'+esc(i.desc)+'"><input class="q" type="number" min="1" title="Qty" value="'+i.qty+'"><input class="dy" type="number" min="1" title="Days" value="'+(i.days||1)+'">'+
+    $('#i-items').innerHTML = '<datalist id="dl-inv-desc">'+itemDescSuggestions().map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>'+
+      items.map((i,n)=>'<div class="it" style="display:grid;grid-template-columns:1fr 64px 64px 100px;gap:7px;margin-bottom:4px">'+
+      '<input class="d" list="dl-inv-desc" autocomplete="off" placeholder="Description — type or pick a previous one" value="'+esc(i.desc)+'"><input class="q" type="number" min="1" title="Qty" value="'+i.qty+'"><input class="dy" type="number" min="1" title="Days" value="'+(i.days||1)+'">'+
       '<input class="r2" type="number" step="0.01" placeholder="Rate" value="'+i.rate+'"></div>').join('');
   };
   drawItems();
