@@ -6467,6 +6467,16 @@ function itemDescSuggestions(){
   add(S.invoices||[]); add(S.quotations||[]);
   return out.slice(0, 300);
 }
+// "Paid to" names and narrations already used on payment vouchers, newest
+// first and without repeats -- suggested while filling a new one.
+function pvSuggestions(field){
+  const seen = new Set(), out = [];
+  (S.vouchers||[]).filter(v=>v.kind==='PV').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).forEach(v=>{
+    const d = String(v[field]||'').trim(), k = d.toLowerCase();
+    if(d && !seen.has(k)){ seen.add(k); out.push(d); }
+  });
+  return out.slice(0, 300);
+}
 function invoiceForm(v, fromBk, presetCompany){
   const isNew = !v;
   v = v || {date:todayISO(), customer:fromBk?fromBk.company:(presetCompany||''), attn:fromBk?fromBk.contact:'', bookingId:fromBk?fromBk.id:null,
@@ -7774,8 +7784,10 @@ function voucherForm(kind, pickedInvId, editV){
       '<div class="tiny" style="margin-top:2px">'+(pickedInv?'This will also post both the Invoice Set 1 &amp; Set 2 above and this New Receipt Set 1 &amp; Set 2 to the General Ledger, properly linked to this voucher — deleting the voucher removes all of them again.':'This will also create a matching entry in the General Ledger, properly linked to this voucher — the two always stay in sync.')+'</div>'
     ) : (
       '<div class="frow"><div class="f"><label>Date</label><input type="date" id="w-dt" value="'+(editV?editV.date:todayISO())+'"></div>'+
-      '<div class="f"><label>Paid to *</label><input id="w-pa" placeholder="e.g. XYZ Trading" value="'+esc(editV?editV.party||'':'')+'"></div></div>'+
-      '<div class="f"><label>Being / narration *</label><input id="w-de" placeholder="e.g. Office rent for August" value="'+esc(editV?editV.desc||'':'')+'"></div>'+
+      '<div class="f"><label>Paid to *</label><input id="w-pa" list="dl-pv-party" autocomplete="off" placeholder="e.g. XYZ Trading" value="'+esc(editV?editV.party||'':'')+'"></div></div>'+
+      '<div class="f"><label>Being / narration *</label><input id="w-de" list="dl-pv-desc" autocomplete="off" placeholder="e.g. Office rent for August" value="'+esc(editV?editV.desc||'':'')+'"></div>'+
+      '<datalist id="dl-pv-party">'+pvSuggestions('party').map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>'+
+      '<datalist id="dl-pv-desc">'+pvSuggestions('desc').map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>'+
       '<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px">Payment Set 1 &amp; Set 2</div>'+
       '<div class="frow" style="gap:12px">'+set1Html+set2Html+'</div>'+
       chequeHtml+
