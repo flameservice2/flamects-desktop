@@ -7807,6 +7807,14 @@ function voucherForm(kind, pickedInvId, editV){
   // change event.
   if(me1El && me2El) me1El.addEventListener('change', ()=>{ me2El.value = me1El.value; });
   if(dt1El && dt2El) dt1El.addEventListener('change', ()=>{ dt2El.value = dt1El.value; });
+  // The voucher's own Date at the top fills both Sets' dates; either Set
+  // can still be changed by hand afterwards.
+  const wdtEl = $('#w-dt');
+  if(wdtEl) ['input','change'].forEach(ev=>wdtEl.addEventListener(ev, ()=>{
+    if(!wdtEl.value) return;
+    if(dt1El) dt1El.value = wdtEl.value;
+    if(dt2El) dt2El.value = wdtEl.value;
+  }));
 }
 // Read-only "View" for a saved Receipt/Payment voucher -- everything the
 // printed copy shows (party, amount, method, being, booking/invoice link,
