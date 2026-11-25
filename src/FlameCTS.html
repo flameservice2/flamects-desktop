@@ -1163,6 +1163,14 @@ table.tbl.ts-grid td.ts-sign{background:#fbfaf7}
 .fl-grid table.tbl th.r{text-align:right}
 .fl-grid table.tbl td:last-child,.fl-grid table.tbl th:last-child{text-align:center;overflow:visible}
 .fl-grid .tbl .btn.sm{padding:2px clamp(3px,.4vw,7px);font-size:inherit;line-height:1.4}
+.fl-grid tr.fl-warn td{background:var(--warnbg)}
+.fl-flag{color:var(--warn);font-weight:700}
+.fl-checkbox{padding:10px 14px;margin:6px 0 4px}
+.fl-checkbox summary{cursor:pointer;color:var(--warn)}
+.fl-checkbox summary .tiny{color:var(--muted);font-weight:400}
+.fl-checkbox .stat-line{font-size:13px;align-items:center}
+.fl-formwarn{margin-top:8px;padding:8px 11px;border-radius:9px;background:var(--paper);font-size:12.5px;line-height:1.5}
+.fl-formwarn.bad{background:var(--warnbg);color:var(--warn)}
 .fl-grid h3{font-size:clamp(12px,1vw,15px)!important}
 .fl-grid table.tbl th .th-sub{display:block;font-size:inherit;font-weight:inherit;text-transform:none}
 
@@ -4274,14 +4282,73 @@ function fuelDriverOptions(eq){
   return out.slice(0, 12);
 }
 function fuelPlate(eq){ return eq ? ((eq.plate && eq.plate!=='—') ? eq.plate : eq.name) : '—'; }
-// Net KM = this entry's odometer minus the same vehicle's previous entry
-// (only when both readings were entered). Average = Net KM per litre.
-function fuelNetKm(f){ const prev = fuelPrevEntry(f); return (prev && prev.km && f.km) ? f.km - prev.km : null; }
-function fuelAvg(f){ const n = fuelNetKm(f); return (n != null && f.litres) ? n / f.litres : null; }
+// How Net KM and Average are worked out for one entry (fuelStretch):
+//  - Net KM = this entry's KM minus the vehicle's last earlier entry that
+//    HAS a KM reading. Entries saved without a KM (e.g. a petrol payment
+//    brought in from the General Ledger) are skipped, so they no longer
+//    blank out the next entry's Net KM.
+//  - Average (km/L) = Net KM / litres filled over that stretch: this
+//    entry's litres plus any fill in between that had no KM reading
+//    (that petrol was used on the same stretch). If a fill on the stretch
+//    has no litres entered, the litres are unknown and no average is shown,
+//    instead of an average that is too high.
+function fuelPrevReading(entry){
+  const earlier = S.fuelLogs.filter(f=>f.equipmentId===entry.equipmentId && f.id!==entry.id && f.km>0 &&
+    (f.date<entry.date || (f.date===entry.date && f.km<=entry.km)));
+  if(!earlier.length) return null;
+  return earlier.sort((a,b)=>a.date.localeCompare(b.date) || a.km-b.km).pop();
+}
+function fuelStretch(f){
+  const out = {prev:null, net:null, litres:null, avg:null, between:[]};
+  if(!(f.km>0)) return out;
+  const prev = fuelPrevReading(f); if(!prev) return out;
+  out.prev = prev; out.net = f.km - prev.km;
+  out.between = S.fuelLogs.filter(x=>x.equipmentId===f.equipmentId && x.id!==f.id && x.id!==prev.id && !(x.km>0) &&
+    x.date>prev.date && x.date<=f.date);
+  const fills = out.between.concat([f]);
+  if(fills.every(x=>x.litres>0)){ out.litres = fills.reduce((t,x)=>t+(+x.litres||0),0); if(out.net>0) out.avg = out.net / out.litres; }
+  return out;
+}
+function fuelNetKm(f){ return fuelStretch(f).net; }
+function fuelAvg(f){ return fuelStretch(f).avg; }
+// Total Net KM counts every stretch; the total Average uses only stretches
+// with a believable average (so a stretch with unknown litres, or one
+// spoiled by a typing mistake, can't skew it).
 function fuelTotals(rows){
   let net = 0, nl = 0, lit = 0;
-  rows.forEach(f=>{ const n = fuelNetKm(f); if(n != null){ net += n; if(f.litres){ nl += n; lit += f.litres; } } });
+  rows.forEach(f=>{ const st = fuelStretch(f); if(st.net != null){ net += st.net;
+    if(st.avg != null && st.avg>=FUEL_AVG_RANGE[0] && st.avg<=FUEL_AVG_RANGE[1]){ nl += st.net; lit += st.litres; } } });
   return {net, avg: lit ? nl / lit : null};
+}
+// Things on an entry that look like a typing mistake. Each is a short
+// sentence; the list page marks the row and lists them under "Entries to check".
+const FUEL_PRICE_RANGE = [1.5, 2.6];   // QAR per litre
+const FUEL_AVG_RANGE = [3, 20];        // km per litre
+function fuelVehicleTypicalAvg(eqId){
+  const avgs = S.fuelLogs.filter(x=>x.equipmentId===eqId).map(fuelAvg).filter(a=>a!=null && a>=FUEL_AVG_RANGE[0] && a<=FUEL_AVG_RANGE[1]).sort((a,b)=>a-b);
+  return avgs.length>=4 ? avgs[Math.floor(avgs.length/2)] : null;
+}
+function fuelIssues(f, typical){
+  const out = [], st = fuelStretch(f);
+  if(!(f.km>0) && !(f.litres>0)) out.push('Only the amount is entered: add the KM and Litr so this fill counts in the Average.');
+  else if(!(f.km>0)) out.push('KM not entered, so Net KM and Average can\'t be worked out.');
+  else if(!(f.litres>0)) out.push('Litr not entered.');
+  if(f.litres>0 && f.amount>0){
+    const ppl = f.amount / f.litres;
+    if(ppl<FUEL_PRICE_RANGE[0] || ppl>FUEL_PRICE_RANGE[1]) out.push(CUR+' '+fmt(ppl)+' per litre looks wrong: check Amount ('+fmt(f.amount)+') and Litr ('+fmt(f.litres)+').');
+  }
+  if(st.net!=null){
+    const pv = st.prev;
+    if(st.net<0) out.push('KM '+fmt0(f.km)+' is lower than the previous reading '+fmt0(pv.km)+' on '+fdate(pv.date)+'.');
+    else if(st.net===0) out.push('KM is the same as the previous reading on '+fdate(pv.date)+'.');
+    else if(st.net>2000) out.push(fmt0(st.net)+' km since the previous reading on '+fdate(pv.date)+' ('+fmt0(pv.km)+'): check both KM readings.');
+    if(st.net>0 && st.avg==null && st.between.some(x=>!(x.litres>0))) out.push('A fill between this and '+fdate(pv.date)+' has no Litr, so the Average is left blank.');
+    if(st.avg!=null){
+      if(st.avg<FUEL_AVG_RANGE[0] || st.avg>FUEL_AVG_RANGE[1]) out.push('Average '+fmt(st.avg)+' km/L is not possible for a normal vehicle: check KM and Litr here and on '+fdate(pv.date)+'.');
+      else if(typical && (st.avg>typical*1.6 || st.avg<typical*0.6)) out.push('Average '+fmt(st.avg)+' km/L is far from this vehicle\'s usual '+fmt(typical)+' km/L: check KM and Litr here and on '+fdate(pv.date)+'.');
+    }
+  }
+  return out;
 }
 // Splits entries into one group per plate no. The vehicles with a regular
 // driver always get a section (even before their first entry); any other
@@ -4310,7 +4377,7 @@ function rFuel(m){
     '<select id="fl-eq"><option value="">All vehicles</option>'+S.equipment.map(e=>'<option value="'+e.id+'"'+(fuelFilter.eq===e.id?' selected':'')+'>'+esc(eqName(e.id))+'</option>').join('')+'</select>'+
     '<input type="date" id="fl-f" value="'+fuelFilter.from+'"><input type="date" id="fl-t" value="'+fuelFilter.to+'">'+
   '</div>'+
-  '<div id="fl-list"></div>';
+  '<div id="fl-check"></div><div id="fl-list"></div>';
   // ---- Detailed Trial Balance reconciliation ----
   // Per vehicle: what Fuel Tracking has logged vs. what's actually posted
   // to that vehicle's Fuel Sub Code in the official Detailed Trial
@@ -4346,11 +4413,12 @@ function rFuel(m){
     });
   };
   const drawList = ()=>{
+    const typ = {}; S.equipment.forEach(e=>{ typ[e.id] = fuelVehicleTypicalAvg(e.id); });
     // One table per vehicle (by plate no.), each with its own totals.
     const rowHTML = f=>{
         const eq = S.equipment.find(x=>x.id===f.equipmentId);
-        const n = fuelNetKm(f), a = fuelAvg(f);
-        return '<tr class="row"><td title="'+esc(f.driver||'')+'">'+esc(f.driver||'—')+'</td>'+
+        const n = fuelNetKm(f), a = fuelAvg(f), iss = fuelIssues(f, typ[f.equipmentId]);
+        return '<tr class="row'+(iss.length?' fl-warn':'')+'"'+(iss.length?' title="'+esc(iss.join(' '))+'"':'')+'><td title="'+esc(f.driver||'')+'">'+(iss.length?'<span class="fl-flag" aria-label="Check this entry">⚠</span> ':'')+esc(f.driver||'—')+'</td>'+
           '<td title="'+fdate(f.date)+'">'+fuelShortDate(f.date)+'</td>'+
           '<td class="r num">'+fmt(f.amount||0)+'</td>'+
           '<td class="r num">'+(f.litres?fmt(f.litres):'—')+'</td>'+
@@ -4363,6 +4431,12 @@ function rFuel(m){
       return '<tr><td colspan="2" class="r">Total</td><td class="r num">'+fmt(rows.reduce((a,f)=>a+(f.amount||0),0))+'</td><td class="r num">'+fmt(rows.reduce((a,f)=>a+(f.litres||0),0))+'</td><td></td>'+
         '<td class="r num">'+fmt0(t.net)+'</td><td class="r num">'+(t.avg==null?'—':fmt(t.avg))+'</td><td></td></tr>'; };
     const groups = fuelGroups(list());
+    const flagged = [];
+    groups.forEach(g=>g.rows.forEach(f=>{ const iss = fuelIssues(f, typ[f.equipmentId]); if(iss.length) flagged.push({f, g, iss}); }));
+    $('#fl-check').innerHTML = flagged.length ? '<details class="card fl-checkbox"'+(flagged.length<=8?' open':'')+'><summary><b>⚠ '+flagged.length+' entr'+(flagged.length===1?'y':'ies')+' to check</b> <span class="tiny">Probably a typing mistake in KM, Litr or Amount. These rows are marked ⚠ below.</span></summary>'+
+      flagged.map(x=>'<div class="stat-line"><span><b>'+esc(x.g.plate)+'</b> · '+fdate(x.f.date)+' · '+esc(x.f.driver||'—')+'<br><span class="tiny">'+x.iss.map(esc).join('<br>')+'</span></span>'+
+        (edit?'<b><button type="button" class="btn sm" data-ed="'+x.f.id+'">Edit</button></b>':'')+'</div>').join('')+'</details>' : '';
+    $$('#fl-check [data-ed]').forEach(x=>x.onclick=()=>fuelForm(S.fuelLogs.find(f=>f.id===x.dataset.ed)));
     $('#fl-list').innerHTML = '<div class="fl-grid">'+groups.map(g=>
       '<div class="fl-col"><h3 style="font-size:15px;margin:18px 0 8px">Plate no '+esc(g.plate)+(g.driver?' <span class="tiny" style="font-weight:500">· '+esc(g.driver)+'</span>':'')+'</h3>'+
       tbl(['Driver name','Date',{t:'Amount '+CUR,r:1},{t:'Litr',r:1},{t:'KM',r:1},{t:'Net KM',r:1},{t:'Avg',sub:'km/L',r:1},''],
@@ -4539,7 +4613,8 @@ function fuelForm(f, presetEq){
     '<div class="frow"><div class="f"><label>Litr</label><input type="number" step="0.01" id="fl-lt" value="'+(f.litres||0)+'"></div>'+
     '<div class="f"><label>KM (odometer after petrol)</label><input type="number" step="1" id="fl-km" value="'+(f.km||0)+'"></div></div>'+
     '<div class="f"><label>Notes</label><input id="fl-no" value="'+esc(f.notes||'')+'"></div>'+
-    '<div class="tiny" id="fl-prev" style="margin-top:2px"></div>',
+    '<div class="tiny" id="fl-prev" style="margin-top:2px"></div>'+
+    '<div id="fl-warn" class="fl-formwarn" style="display:none"></div>',
     {onSave:(mo)=>{
       const eqid = val({node:mo},'fl-eqid'), dt = val({node:mo},'fl-dt'), km = numval({node:mo},'fl-km');
       if(!eqid){ toast('Pick a vehicle.', true); return false; }
@@ -4563,9 +4638,9 @@ function fuelForm(f, presetEq){
       (eq?'<button type="button" class="btn sm" id="fl-veh-more" style="margin-top:6px">Full vehicle details</button>':'');
     const more = $('#fl-veh-more'); if(more) more.onclick = ()=>equipDetail(eqid);
     const others = S.fuelLogs.filter(x=>x.equipmentId===eqid && x.id!==f.id).sort((a,b)=>a.date.localeCompare(b.date) || a.km-b.km);
-    const prev = others[others.length-1];
+    const prev = others.filter(x=>x.km>0).pop();
     $('#fl-prev').textContent = prev
-      ? ('Last logged fill for this vehicle: '+fdate(prev.date)+' at '+fmt0(prev.km)+' km — KM travelled since then will be calculated automatically.')
+      ? ('Last KM reading for this vehicle: '+fmt0(prev.km)+' km on '+fdate(prev.date)+' — Net KM and Average are worked out from it.')
       : 'No previous fill on file for this vehicle yet — this will be its first logged entry.';
   };
   // Driver name: a list of the vehicle's drivers (and names used before for
@@ -4586,7 +4661,23 @@ function fuelForm(f, presetEq){
     fillDrivers(typed || fuelDefaultDriver(S.equipment.find(x=>x.id===$('#fl-eqid').value)));
     updatePrev();
   };
+  // Live check while typing: warns about a KM lower than the last reading,
+  // a price per litre or an average that can't be right, before saving.
+  const checkNow = ()=>{
+    const box = $('#fl-warn'); if(!box) return;
+    const g = id=>{ const n = mm.node.querySelector('#'+id); return n ? n.value : ''; };
+    const t = {id:f.id||'__new', equipmentId:g('fl-eqid'), date:g('fl-dt')||todayISO(),
+      km:parseFloat(g('fl-km'))||0, litres:parseFloat(g('fl-lt'))||0, amount:parseFloat(g('fl-am'))||0};
+    const st = fuelStretch(t);
+    const iss = fuelIssues(t, fuelVehicleTypicalAvg(t.equipmentId)).filter(x=>!/not entered|Only the amount/.test(x));
+    const calc = st.net!=null ? 'Net KM '+fmt0(st.net)+(st.avg!=null?' · Average '+fmt(st.avg)+' km/L':'') : '';
+    box.style.display = (iss.length || calc) ? '' : 'none';
+    box.className = 'fl-formwarn'+(iss.length?' bad':'');
+    box.innerHTML = (calc?'<div>'+esc(calc)+'</div>':'')+iss.map(x=>'<div>⚠ '+esc(x)+'</div>').join('');
+  };
+  ['fl-km','fl-lt','fl-am','fl-dt','fl-eqid'].forEach(id=>{ const n = mm.node.querySelector('#'+id); if(n){ n.addEventListener('input', checkNow); n.addEventListener('change', checkNow); } });
   updatePrev();
+  checkNow();
 }
 /* ---------------- GENERAL LEDGER / TRANSACTIONS ---------------- */
 // Categories and transaction types are stored in the shared data (so
