@@ -1725,6 +1725,7 @@ function seed(){
 
   const perms = {
     'Super Admin': {},   // full access (implicit)
+    'Admin':    {},   // every module set to edit by ensureAdminRole()
     'Manager':  {dashboard:'edit', enquiries:'edit', bookings:'edit', contacts:'edit', ledger:'edit', quotations:'edit', invoices:'edit', receipts:'edit', pendingapproval:'edit', payments:'edit', balancesheet:'view', trialbalance:'view', detailedtb:'view', tbchart:'view', placcount:'view', cashflow:'view', arcostcentre:'view', plsummary:'view', costexpense:'view', masteredit:'edit', followups:'edit', reminders:'edit', users:'view', settings:'view', mastercode:'edit'},
     'Staff':    {dashboard:'view', enquiries:'edit', bookings:'edit', contacts:'edit', ledger:'edit', quotations:'edit', invoices:'view', receipts:'view', pendingapproval:'view', payments:'view', balancesheet:'none', trialbalance:'none', detailedtb:'none', tbchart:'none', placcount:'none', cashflow:'none', arcostcentre:'none', plsummary:'none', costexpense:'none', masteredit:'edit', followups:'edit', reminders:'edit', users:'none', settings:'none', mastercode:'view'}
   };
@@ -2143,6 +2144,7 @@ function currentUser(){ return MY_PROFILE; }
 function can(mod, need){ // need: 'view' | 'edit'
   const u = currentUser(); if(!u) return false;
   if(u.role === 'Super Admin') return true;
+  if(u.role === 'Admin' && S.perms && (!S.perms.Admin || S.perms.Admin[mod]===undefined)) ensureAdminRole();
   const lvl = (S.perms[u.role]||{})[mod] || 'none';
   if(need === 'view') return lvl === 'view' || lvl === 'edit';
   return lvl === 'edit';
@@ -8718,6 +8720,19 @@ function remForm(r){
 }
 
 /* ---------------- USERS & ROLES ---------------- */
+// Admin role (between Super Admin and Manager): full edit on every module
+// by default, changeable per module in Role permissions like Manager and
+// Staff. Approving vouchers and managing teammates' profiles stay with
+// Super Admin. Any module without a level yet (including pages added in
+// later versions) starts at edit for Admin.
+function ensureAdminRole(){
+  if(!S || !S.perms) return false;
+  let changed = false;
+  if(!S.perms.Admin){ S.perms.Admin = {}; changed = true; }
+  NAV.filter(n=>n.id && !n.sub).forEach(n=>{ if(S.perms.Admin[n.id]===undefined){ S.perms.Admin[n.id] = 'edit'; changed = true; } });
+  ['receipts','payments'].forEach(k=>{ if(S.perms.Admin[k]===undefined){ S.perms.Admin[k] = 'edit'; changed = true; } });
+  return changed;
+}
 let usrTab = 'users';
 function rUsers(m){
   const superAdmin = currentUser() && currentUser().role==='Super Admin';
@@ -8754,11 +8769,11 @@ function rUsers(m){
   }
   if(usrTab==='perms'){
     const mods = NAV.filter(n=>n.id && !n.sub).map(n=>[n.id,n.t]);
-    host.innerHTML = '<div class="card tbl-wrap"><table class="tbl perm-grid"><thead><tr><th>Module</th><th>Super Admin</th><th>Manager</th><th>Staff</th></tr></thead><tbody>'+
+    host.innerHTML = '<div class="card tbl-wrap"><table class="tbl perm-grid"><thead><tr><th>Module</th><th>Super Admin</th><th>Admin</th><th>Manager</th><th>Staff</th></tr></thead><tbody>'+
       mods.map(md=>'<tr><td style="text-align:left"><b>'+esc(md[1])+'</b></td><td><span class="chip c-ok">Full</span></td>'+
-        ['Manager','Staff'].map(role=>'<td><select data-role="'+role+'" data-mod="'+md[0]+'"'+(superAdmin?'':' disabled')+'>'+
+        ['Admin','Manager','Staff'].map(role=>'<td><select data-role="'+role+'" data-mod="'+md[0]+'"'+(superAdmin?'':' disabled')+'>'+
           ['none','view','edit'].map(l=>'<option'+(((S.perms[role]||{})[md[0]]||'none')===l?' selected':'')+'>'+l+'</option>').join('')+'</select></td>').join('')+'</tr>').join('')+
-      '</tbody></table></div><p class="tiny" style="margin-top:8px">Super Admin always has full access. Changes sync to everyone\'s screen automatically.</p>';
+      '</tbody></table></div><p class="tiny" style="margin-top:8px">Super Admin always has full access. Admin starts with edit on everything; approving vouchers and editing teammates\' profiles stay with Super Admin. Changes sync to everyone\'s screen automatically.</p>';
     $$('#u-body select[data-role]').forEach(sel=>sel.onchange=()=>{
       S.perms[sel.dataset.role] = S.perms[sel.dataset.role]||{};
       S.perms[sel.dataset.role][sel.dataset.mod] = sel.value;
@@ -8778,7 +8793,7 @@ function addProfileForm(){
     '<div class="f"><label>User UID (from Supabase) *</label><input id="n-id" placeholder="e.g. 3fa85f64-5717-4562-b3fc-2c963f66afa6"></div>'+
     '<div class="frow"><div class="f"><label>Full name *</label><input id="n-nm"></div>'+
     '<div class="f"><label>Job title</label><input id="n-ti"></div></div>'+
-    '<div class="f"><label>Role</label><select id="n-ro">'+['Staff','Manager','Super Admin'].map(r=>'<option>'+r+'</option>').join('')+'</select></div>',
+    '<div class="f"><label>Role</label><select id="n-ro">'+['Staff','Manager','Admin','Super Admin'].map(r=>'<option>'+r+'</option>').join('')+'</select></div>',
     {saveLabel:'Create profile', onSave:async (mo)=>{
       const id=val({node:mo},'n-id'), nm=val({node:mo},'n-nm');
       if(!id||!nm){ toast('User UID and name are required.', true); return false; }
@@ -8793,7 +8808,7 @@ function userForm(u){
   modal('Edit '+u.name,
     '<div class="frow"><div class="f"><label>Full name *</label><input id="n-nm" value="'+esc(u.name)+'"></div>'+
     '<div class="f"><label>Job title</label><input id="n-ti" value="'+esc(u.title||'')+'"></div></div>'+
-    '<div class="f"><label>Role</label><select id="n-ro">'+['Staff','Manager','Super Admin'].map(r=>'<option'+(u.role===r?' selected':'')+'>'+r+'</option>').join('')+'</select></div>'+
+    '<div class="f"><label>Role</label><select id="n-ro">'+['Staff','Manager','Admin','Super Admin'].map(r=>'<option'+(u.role===r?' selected':'')+'>'+r+'</option>').join('')+'</select></div>'+
     '<div class="tiny">To reset this person\'s password, use the Supabase dashboard → Authentication → Users.</div>',
     {onSave:async (mo)=>{
       const nm=val({node:mo},'n-nm'); if(!nm){ toast('Name is required.', true); return false; }
@@ -9437,6 +9452,7 @@ async function boot(){
       // any leftover S.perms[role].customers from an older install is just
       // an unused key now (nothing reads it), left in place rather than
       // deleted so this stays a pure no-op migration step.
+      ensureAdminRole();
       if(S.perms.Manager && S.perms.Manager.contacts===undefined) S.perms.Manager.contacts = 'edit';
       if(S.perms.Staff && S.perms.Staff.contacts===undefined) S.perms.Staff.contacts = 'edit';
       if(S.perms.Manager && S.perms.Manager.fuel===undefined) S.perms.Manager.fuel = 'edit';
