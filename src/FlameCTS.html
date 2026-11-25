@@ -4252,8 +4252,23 @@ function fuelTravelled(entry){
 // other name).
 const FUEL_DRIVERS = {'685541':['Akbar Sha','Ayoob Khan'], '874281':['Moosa kutty']};
 const FUEL_DEFAULT_DRIVERS = Object.fromEntries(Object.entries(FUEL_DRIVERS).map(([p,d])=>[p,d[0]]));
+// Names compared without spaces, dots or case, so "AyoobKhan" and
+// "Ayoob Khan" are one driver; fuelCanonDriver() turns any spelling of a
+// regular driver into the name in FUEL_DRIVERS.
+const fuelDriverKey = n => String(n||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+function fuelCanonDriver(n){
+  const v = String(n||'').trim().replace(/\s+/g,' '), k = fuelDriverKey(v);
+  for(const list of Object.values(FUEL_DRIVERS)) for(const d of list) if(fuelDriverKey(d)===k) return d;
+  return v;
+}
+// Brings earlier petrol entries' driver names in line with fuelCanonDriver().
+function mergeFuelDriverNames(){
+  let changed = 0;
+  (S.fuelLogs||[]).forEach(f=>{ if(f.driver){ const c = fuelCanonDriver(f.driver); if(c!==f.driver){ f.driver = c; changed++; } } });
+  return changed;
+}
 function fuelDriverOptions(eq){
-  const out = [], seen = new Set(), add = n=>{ const v = String(n||'').trim(), k = v.toLowerCase(); if(v && !seen.has(k)){ seen.add(k); out.push(v); } };
+  const out = [], seen = new Set(), add = n=>{ const v = fuelCanonDriver(n), k = fuelDriverKey(v); if(v && !seen.has(k)){ seen.add(k); out.push(v); } };
   ((eq && FUEL_DRIVERS[eq.plate]) || []).forEach(add);
   S.fuelLogs.filter(x=>eq && x.equipmentId===eq.id).sort((a,b)=>b.date.localeCompare(a.date)).forEach(x=>add(x.driver));
   return out.slice(0, 12);
@@ -4530,7 +4545,7 @@ function fuelForm(f, presetEq){
       if(!eqid){ toast('Pick a vehicle.', true); return false; }
       if(!dt){ toast('Fuel date is required.', true); return false; }
       if(isNew){ f.id = uid('fl'); S.fuelLogs.push(f); }
-      f.equipmentId = eqid; f.date = dt; f.driver = val({node:mo},'fl-drs')==='__other__' ? val({node:mo},'fl-dr') : val({node:mo},'fl-drs'); f.km = km;
+      f.equipmentId = eqid; f.date = dt; f.driver = fuelCanonDriver(val({node:mo},'fl-drs')==='__other__' ? val({node:mo},'fl-dr') : val({node:mo},'fl-drs')); f.km = km;
       f.amount = numval({node:mo},'fl-am'); f.litres = numval({node:mo},'fl-lt'); f.notes = val({node:mo},'fl-no');
       logAudit(isNew?'Fuel entry added':'Fuel entry updated', eqName(eqid)+' · '+fdate(dt)+' · '+fmt0(km)+' km');
       save(); render();
@@ -4558,8 +4573,8 @@ function fuelForm(f, presetEq){
   const drs = $('#fl-drs'), dr = $('#fl-dr');
   const fillDrivers = (pick)=>{
     const opts = fuelDriverOptions(S.equipment.find(x=>x.id===$('#fl-eqid').value));
-    if(pick && !opts.some(o=>o.toLowerCase()===pick.toLowerCase())) opts.push(pick);
-    drs.innerHTML = '<option value="">— select —</option>'+opts.map(o=>'<option'+(pick && o.toLowerCase()===pick.toLowerCase()?' selected':'')+'>'+esc(o)+'</option>').join('')+
+    if(pick && !opts.some(o=>fuelDriverKey(o)===fuelDriverKey(pick))) opts.push(fuelCanonDriver(pick));
+    drs.innerHTML = '<option value="">— select —</option>'+opts.map(o=>'<option'+(pick && fuelDriverKey(o)===fuelDriverKey(pick)?' selected':'')+'>'+esc(o)+'</option>').join('')+
       '<option value="__other__">+ Other name…</option>';
     dr.style.display = 'none';
   };
@@ -9270,6 +9285,8 @@ async function boot(){
         specs:'', terms:'', dayRate:0, status:'Available', images:[], created:todayISO()});
     }
     if(!S.fuelLogs) S.fuelLogs = [];
+    // One spelling per regular driver (e.g. "AyoobKhan" -> "Ayoob Khan").
+    if(mergeFuelDriverNames()) save();
     // Backfill the correct per-vehicle Main/Sub Code onto any Rental Income
     // receipt that's missing one (see ensureReceiptLedgerCodes() above) —
     // run after the equipment placeholders above so 685541/874281's own
