@@ -4246,9 +4246,18 @@ function fuelTravelled(entry){
   const prev = fuelPrevEntry(entry);
   return prev ? (entry.km - prev.km) : null;
 }
-// Regular driver for each vehicle (by plate no.) -- filled in
-// automatically on a new Petrol Tracking entry; can still be changed.
-const FUEL_DEFAULT_DRIVERS = {'685541':'Akbar Sha', '874281':'Moosa kutty'};
+// Regular drivers for each vehicle (by plate no.). The first is filled in
+// automatically on a new Petrol Tracking entry; the Driver name list on the
+// entry offers all of them (plus names used before for that vehicle, or any
+// other name).
+const FUEL_DRIVERS = {'685541':['Akbar Sha','Ayoob Khan'], '874281':['Moosa kutty']};
+const FUEL_DEFAULT_DRIVERS = Object.fromEntries(Object.entries(FUEL_DRIVERS).map(([p,d])=>[p,d[0]]));
+function fuelDriverOptions(eq){
+  const out = [], seen = new Set(), add = n=>{ const v = String(n||'').trim(), k = v.toLowerCase(); if(v && !seen.has(k)){ seen.add(k); out.push(v); } };
+  ((eq && FUEL_DRIVERS[eq.plate]) || []).forEach(add);
+  S.fuelLogs.filter(x=>eq && x.equipmentId===eq.id).sort((a,b)=>b.date.localeCompare(a.date)).forEach(x=>add(x.driver));
+  return out.slice(0, 12);
+}
 function fuelPlate(eq){ return eq ? ((eq.plate && eq.plate!=='—') ? eq.plate : eq.name) : '—'; }
 // Net KM = this entry's odometer minus the same vehicle's previous entry
 // (only when both readings were entered). Average = Net KM per litre.
@@ -4267,7 +4276,7 @@ function fuelGroups(rows){
   rows.forEach(f=>{ const p = fuelPlate(S.equipment.find(x=>x.id===f.equipmentId)); (byPlate[p] = byPlate[p] || []).push(f); });
   const want = fuelFilter.eq ? [fuelPlate(S.equipment.find(x=>x.id===fuelFilter.eq))] : Object.keys(FUEL_DEFAULT_DRIVERS);
   const plates = want.concat(Object.keys(byPlate).filter(p=>!want.includes(p)).sort());
-  return plates.map(p=>({plate:p, driver:FUEL_DEFAULT_DRIVERS[p]||'', rows:byPlate[p]||[]}));
+  return plates.map(p=>({plate:p, driver:(FUEL_DRIVERS[p]||[]).join(' / '), rows:byPlate[p]||[]}));
 }
 function fuelShortDate(iso){ const d = fdate(iso); return d.replace(/\/(\d{2})(\d{2})$/, '/$2'); }   // 05/10/2026 -> 05/10/26
 function fuelDefaultDriver(eq){ return (eq && FUEL_DEFAULT_DRIVERS[eq.plate]) || ''; }
@@ -4507,7 +4516,8 @@ function fuelForm(f, presetEq){
     '<div class="frow"><div class="f"><label>Plate no *</label><select id="fl-eqid">'+
       S.equipment.map(x=>'<option value="'+x.id+'"'+(f.equipmentId===x.id?' selected':'')+'>'+esc(eqName(x.id))+'</option>').join('')+
     '</select></div>'+
-    '<div class="f"><label>Driver name</label><input id="fl-dr" value="'+esc(f.driver||'')+'"></div></div>'+
+    '<div class="f"><label>Driver name</label><select id="fl-drs"></select>'+
+      '<input id="fl-dr" placeholder="Type the driver\'s name" style="margin-top:6px;display:none" value="'+esc(f.driver||'')+'"></div></div>'+
     '<div id="fl-veh" style="margin:2px 0 10px;padding:11px;background:var(--paper);border-radius:9px"></div>'+
     '<div class="frow"><div class="f"><label>Date *</label><input type="date" id="fl-dt" value="'+f.date+'"></div>'+
     '<div class="f"><label>Amount ('+CUR+')</label><input type="number" step="0.01" id="fl-am" value="'+(f.amount||0)+'"></div></div>'+
@@ -4520,7 +4530,7 @@ function fuelForm(f, presetEq){
       if(!eqid){ toast('Pick a vehicle.', true); return false; }
       if(!dt){ toast('Fuel date is required.', true); return false; }
       if(isNew){ f.id = uid('fl'); S.fuelLogs.push(f); }
-      f.equipmentId = eqid; f.date = dt; f.driver = val({node:mo},'fl-dr'); f.km = km;
+      f.equipmentId = eqid; f.date = dt; f.driver = val({node:mo},'fl-drs')==='__other__' ? val({node:mo},'fl-dr') : val({node:mo},'fl-drs'); f.km = km;
       f.amount = numval({node:mo},'fl-am'); f.litres = numval({node:mo},'fl-lt'); f.notes = val({node:mo},'fl-no');
       logAudit(isNew?'Fuel entry added':'Fuel entry updated', eqName(eqid)+' · '+fdate(dt)+' · '+fmt0(km)+' km');
       save(); render();
@@ -4543,10 +4553,22 @@ function fuelForm(f, presetEq){
       ? ('Last logged fill for this vehicle: '+fdate(prev.date)+' at '+fmt0(prev.km)+' km — KM travelled since then will be calculated automatically.')
       : 'No previous fill on file for this vehicle yet — this will be its first logged entry.';
   };
+  // Driver name: a list of the vehicle's drivers (and names used before for
+  // it), with "Other name" opening a box to type any name.
+  const drs = $('#fl-drs'), dr = $('#fl-dr');
+  const fillDrivers = (pick)=>{
+    const opts = fuelDriverOptions(S.equipment.find(x=>x.id===$('#fl-eqid').value));
+    if(pick && !opts.some(o=>o.toLowerCase()===pick.toLowerCase())) opts.push(pick);
+    drs.innerHTML = '<option value="">— select —</option>'+opts.map(o=>'<option'+(pick && o.toLowerCase()===pick.toLowerCase()?' selected':'')+'>'+esc(o)+'</option>').join('')+
+      '<option value="__other__">+ Other name…</option>';
+    dr.style.display = 'none';
+  };
+  drs.onchange = ()=>{ const other = drs.value==='__other__'; dr.style.display = other ? '' : 'none'; if(other){ dr.value = ''; dr.focus(); } };
+  fillDrivers(f.driver||'');
   $('#fl-eqid').onchange = ()=>{
-    // Fill in the vehicle's regular driver unless a different name was typed.
-    const dr = $('#fl-dr'), cur = dr.value.trim();
-    if(!cur || Object.values(FUEL_DEFAULT_DRIVERS).includes(cur)) dr.value = fuelDefaultDriver(S.equipment.find(x=>x.id===$('#fl-eqid').value));
+    // Switch to the new vehicle's regular driver unless a different name was typed.
+    const typed = drs.value==='__other__' ? dr.value.trim() : '';
+    fillDrivers(typed || fuelDefaultDriver(S.equipment.find(x=>x.id===$('#fl-eqid').value)));
     updatePrev();
   };
   updatePrev();
