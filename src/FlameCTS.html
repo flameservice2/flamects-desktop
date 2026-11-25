@@ -820,7 +820,9 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
 .filters .dmy .dmy-t{width:100%}
 .dmy .dmy-b{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:0;background:none;color:var(--muted);cursor:pointer;border-radius:6px}
 .dmy .dmy-b:hover{background:var(--paper);color:inherit}
-.dmy .dmy-p{position:absolute;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0}
+.dmy .dmy-p{position:absolute !important;left:0;bottom:0;width:1px !important;height:1px !important;min-width:0 !important;opacity:0;pointer-events:none;border:0 !important;padding:0 !important;margin:0 !important;flex:none !important}
+.dmy-auto{vertical-align:middle}
+.dmy-auto .dmy-t:disabled{background:var(--paper)}
 .dmy .dmy-t.dmy-bad{border-color:var(--bad);background:#fff5f5}
 @media (max-width:640px){ .filters .dmy{flex:1 1 calc(50% - 4px)} }
 
@@ -1301,9 +1303,12 @@ const fmt0 = n => (+n||0).toLocaleString('en-QA',{maximumFractionDigits:0});
 const money = n => CUR + ' ' + fmt(n);
 // Excel serial date -> ISO yyyy-mm-dd  (workbook dates are stored as serials)
 const xd = serial => new Date(Date.UTC(1899,11,30) + serial*86400000).toISOString().slice(0,10);
-const todayISO = () => new Date().toISOString().slice(0,10);
-const fdate = iso => { if(!iso) return '—'; const d = new Date(iso+'T00:00:00'); return isNaN(d)?'—':d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); };
-const fdatetime = iso => { if(!iso) return '—'; const d = new Date(iso); return isNaN(d)?'—':d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); };
+// Today by the computer's own clock (not UTC, which is still yesterday in Qatar until 3 AM).
+const todayISO = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+// Every date in the app is shown as DD/MM/YYYY (and times as DD/MM/YYYY HH:MM).
+const dmyParts = d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+const fdate = iso => { if(!iso) return '—'; const d = new Date(String(iso).slice(0,10)+'T00:00:00'); return isNaN(d)?'—':dmyParts(d); };
+const fdatetime = iso => { if(!iso) return '—'; const d = new Date(iso); return isNaN(d)?'—':dmyParts(d)+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); };
 const monthKey = iso => (iso||'').slice(0,7);
 const monthLabel = k => { const d = new Date(k+'-01T00:00:00'); return d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}); };
 const daysUntil = iso => Math.ceil((new Date(iso+'T00:00:00') - new Date(todayISO()+'T00:00:00'))/86400000);
@@ -2763,7 +2768,7 @@ function rDashboard(m){
 
   const pendingAppr = S.vouchers.filter(v=>v.approvalStatus==='Pending Approval').length;
   const newEnq = enq.filter(e=>e.status==='New').length;
-  const today = new Date().toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'Asia/Qatar'});
+  const today = new Date().toLocaleDateString('en-GB',{weekday:'long', timeZone:'Asia/Qatar'})+', '+new Date().toLocaleDateString('en-GB',{day:'2-digit', month:'2-digit', year:'numeric', timeZone:'Asia/Qatar'});
   const hr = Number(new Date().toLocaleString('en-GB',{hour:'2-digit', hour12:false, timeZone:'Asia/Qatar'}));
   const greet = hr<12 ? 'Good morning' : (hr<17 ? 'Good afternoon' : 'Good evening');
   const me = currentUser(), firstName = me && me.name ? String(me.name).split(' ')[0] : '';
@@ -2781,7 +2786,7 @@ function rDashboard(m){
 
   // Every headline card is the all-time total up to today, so each one is
   // labelled with today's date (Doha time) rather than a month comparison.
-  const asOn = new Date().toLocaleDateString('en-GB',{day:'numeric', month:'short', year:'numeric', timeZone:'Asia/Qatar'});
+  const asOn = new Date().toLocaleDateString('en-GB',{day:'2-digit', month:'2-digit', year:'numeric', timeZone:'Asia/Qatar'});
   const delta = () => '<span class="dx-delta"><i>As on</i> '+asOn+'</span>';
   const spark = (arr, color, id) => {
     const w = 120, h = 36, max = Math.max(...arr), min = Math.min(0, ...arr), rng = (max-min) || 1;
@@ -3051,7 +3056,7 @@ function readHTML(v){
   return (h || '<div class="empty">Nothing to read right now.</div>')+(v.stale?'<div class="tiny" style="margin-top:8px">Offline — showing the last saved page.</div>':'');
 }
 async function loadRead(force){
-  const ck = 'read', cached = dbStore(ck), today = new Date().toISOString().slice(0,10);
+  const ck = 'read', cached = dbStore(ck), today = todayISO();
   if(!force && cached && cached.day===today && Date.now()-cached.at < 3*3600000) return cached;
   try{ const v = {at:Date.now(), day:today, d:JSON.parse(await feedGet('wiki'))}; dbStore(ck, v); return v; }
   catch(e){ if(cached) return Object.assign({}, cached, {stale:true}); throw e; }
@@ -4264,7 +4269,7 @@ function fuelGroups(rows){
   const plates = want.concat(Object.keys(byPlate).filter(p=>!want.includes(p)).sort());
   return plates.map(p=>({plate:p, driver:FUEL_DEFAULT_DRIVERS[p]||'', rows:byPlate[p]||[]}));
 }
-function fuelShortDate(iso){ const d = fdate(iso); return d.replace(/ (\d{2})(\d{2})$/, ' $2'); }   // 05 Oct 2026 -> 05 Oct 26
+function fuelShortDate(iso){ const d = fdate(iso); return d.replace(/\/(\d{2})(\d{2})$/, '/$2'); }   // 05/10/2026 -> 05/10/26
 function fuelDefaultDriver(eq){ return (eq && FUEL_DEFAULT_DRIVERS[eq.plate]) || ''; }
 function rFuel(m){
   const edit = can('fuel','edit');
@@ -8012,6 +8017,67 @@ function wireDmy(root, onChange){
     t.onblur = check;
   });
 }
+// Every <input type="date"> in the app is shown as a DD/MM/YYYY text box
+// (Windows and phones otherwise show the date in their own order, often
+// MM/DD/YYYY). The original date input stays in the page, hidden, with its
+// id, value (YYYY-MM-DD) and handlers, so every form and filter keeps
+// reading and setting it as before; the text box writes to it and fires
+// its input/change events, and setting its value from code updates the box.
+const DATE_INPUT_VALUE = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+function enhanceDateInput(n){
+  if(n.dataset.dmy || n.classList.contains('dmy-p') || (n.closest && n.closest('.dmy'))) return;
+  n.dataset.dmy = '1';
+  const w = document.createElement('span'); w.className = 'dmy dmy-auto';
+  const t = document.createElement('input');
+  t.className = ('dmy-t '+n.className).trim(); t.setAttribute('inputmode','numeric'); t.autocomplete = 'off';
+  t.placeholder = 'DD/MM/YYYY'; t.maxLength = 10;
+  if(n.getAttribute('style')) t.setAttribute('style', n.getAttribute('style'));
+  if(n.title) t.title = n.title;
+  t.disabled = n.disabled; t.readOnly = n.readOnly;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'dmy-b'; b.title = 'Pick a date'; b.setAttribute('aria-label','Pick a date'); b.innerHTML = DMY_CAL;
+  if(n.disabled || n.readOnly) b.style.display = 'none';
+  n.parentNode.insertBefore(w, n); w.appendChild(t); w.appendChild(b); w.appendChild(n);
+  n.classList.add('dmy-p'); n.tabIndex = -1; n.setAttribute('aria-hidden','true');
+  const show = ()=>{ const iso = DATE_INPUT_VALUE.get.call(n); if(dmyToISO(t.value)!==iso) t.value = fdmy(iso); t.classList.remove('dmy-bad'); };
+  Object.defineProperty(n, 'value', {configurable:true,
+    get(){ return DATE_INPUT_VALUE.get.call(this); },
+    set(v){ DATE_INPUT_VALUE.set.call(this, v); show(); }});
+  t.value = fdmy(n.value);
+  const push = iso=>{
+    if(DATE_INPUT_VALUE.get.call(n) === iso) return;
+    DATE_INPUT_VALUE.set.call(n, iso);
+    n.dispatchEvent(new Event('input', {bubbles:true}));
+    n.dispatchEvent(new Event('change', {bubbles:true}));
+  };
+  t.addEventListener('input', e=>{
+    if(e.inputType && e.inputType.indexOf('insert')===0 && /^\d*$/.test(t.value)){
+      const d = t.value.slice(0,8);
+      t.value = d.slice(0,2)+(d.length>2?'/'+d.slice(2,4):'')+(d.length>4?'/'+d.slice(4):'');
+    }
+    if(!t.value){ t.classList.remove('dmy-bad'); push(''); return; }
+    const iso = dmyToISO(t.value);
+    if(iso){ t.classList.remove('dmy-bad'); push(iso); }
+    else if(t.value.length>=10) t.classList.add('dmy-bad');
+  });
+  // A date that doesn't exist (31/02/2026) or isn't complete goes back to the last good one.
+  t.addEventListener('blur', ()=>{ if(t.value && !dmyToISO(t.value)){ toast('Enter the date as DD/MM/YYYY, e.g. 25/11/2026.', true); t.value = ''; } show(); });
+  n.addEventListener('change', show);
+  b.onclick = ()=>{ if(t.disabled) return; try{ n.showPicker(); }catch(e){ n.focus(); n.click(); } };
+}
+function enhanceDateInputs(root){
+  if(!root || !root.querySelectorAll) return;
+  if(root.matches && root.matches('input[type=date]')) enhanceDateInput(root);
+  root.querySelectorAll('input[type=date]').forEach(enhanceDateInput);
+}
+(function(){
+  if(!window.MutationObserver) return;
+  const start = ()=>{
+    enhanceDateInputs(document.body);
+    new MutationObserver(list=>list.forEach(r=>r.addedNodes.forEach(nd=>{ if(nd.nodeType===1) enhanceDateInputs(nd); })))
+      .observe(document.body, {childList:true, subtree:true});
+  };
+  if(document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
 function rAdvance(m){
   if(!S.advances) S.advances = [];
   if(!ADV_TYPES[advTab]) advTab = 'individual';
@@ -8566,7 +8632,7 @@ function rUsers(m){
   }
   if(usrTab==='audit'){
     host.innerHTML = tbl(['When','User','Action','Detail'],
-      S.audit.slice(0,120).map(a=>'<tr><td class="num tiny">'+new Date(a.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+'</td>'+
+      S.audit.slice(0,120).map(a=>'<tr><td class="num tiny">'+fdatetime(a.ts)+'</td>'+
         '<td>'+esc(a.user)+'</td><td><b>'+esc(a.action)+'</b></td><td class="tiny">'+esc(a.detail)+'</td></tr>').join(''));
   }
 }
