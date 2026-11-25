@@ -813,6 +813,18 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
 .filters{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
 .filters input,.filters select{padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#fff;min-width:0}
 .filters input[type=search]{flex:1;min-width:140px}
+.dmy{position:relative;display:inline-flex;align-items:center;min-width:0}
+.f .dmy{display:flex;width:100%}
+.dmy .dmy-t{flex:1;min-width:0;padding-right:36px !important}
+.filters .dmy{flex:0 1 160px}
+.filters .dmy .dmy-t{width:100%}
+.dmy .dmy-b{position:absolute;right:4px;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;width:28px;height:28px;border:0;background:none;color:var(--muted);cursor:pointer;border-radius:6px}
+.dmy .dmy-b:hover{background:var(--paper);color:inherit}
+.dmy .dmy-p{position:absolute !important;left:0;bottom:0;width:1px !important;height:1px !important;min-width:0 !important;opacity:0;pointer-events:none;border:0 !important;padding:0 !important;margin:0 !important;flex:none !important}
+.dmy-auto{vertical-align:middle}
+.dmy-auto .dmy-t:disabled{background:var(--paper)}
+.dmy .dmy-t.dmy-bad{border-color:var(--bad);background:#fff5f5}
+@media (max-width:640px){ .filters .dmy{flex:1 1 calc(50% - 4px)} }
 
 .f{margin-bottom:12px}
 .f label{display:block;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
@@ -1294,9 +1306,12 @@ const fmt0 = n => (+n||0).toLocaleString('en-QA',{maximumFractionDigits:0});
 const money = n => CUR + ' ' + fmt(n);
 // Excel serial date -> ISO yyyy-mm-dd  (workbook dates are stored as serials)
 const xd = serial => new Date(Date.UTC(1899,11,30) + serial*86400000).toISOString().slice(0,10);
-const todayISO = () => new Date().toISOString().slice(0,10);
-const fdate = iso => { if(!iso) return '—'; const d = new Date(iso+'T00:00:00'); return isNaN(d)?'—':d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}); };
-const fdatetime = iso => { if(!iso) return '—'; const d = new Date(iso); return isNaN(d)?'—':d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); };
+// Today by the computer's own clock (not UTC, which is still yesterday in Qatar until 3 AM).
+const todayISO = () => { const d = new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); };
+// Every date in the app is shown as DD/MM/YYYY (and times as DD/MM/YYYY HH:MM).
+const dmyParts = d => String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+const fdate = iso => { if(!iso) return '—'; const d = new Date(String(iso).slice(0,10)+'T00:00:00'); return isNaN(d)?'—':dmyParts(d); };
+const fdatetime = iso => { if(!iso) return '—'; const d = new Date(iso); return isNaN(d)?'—':dmyParts(d)+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}); };
 const monthKey = iso => (iso||'').slice(0,7);
 const monthLabel = k => { const d = new Date(k+'-01T00:00:00'); return d.toLocaleDateString('en-GB',{month:'short',year:'2-digit'}); };
 const daysUntil = iso => Math.ceil((new Date(iso+'T00:00:00') - new Date(todayISO()+'T00:00:00'))/86400000);
@@ -2193,7 +2208,7 @@ function statusChip(s){
     'Pending':'c-con','Received':'c-ok','Partially Paid':'c-rev','Refunded':'c-off','Paid':'c-ok',
     'Open':'c-con','In Progress':'c-rev','Done':'c-ok','Active':'c-ok','Deactivated':'c-off',
     'Draft':'c-con','Sent':'c-rev','Accepted':'c-ok','Rejected':'c-bad','Expired':'c-off',
-    'Pending Approval':'c-con','Approved':'c-ok'};
+    'Pending Approval':'c-con','Approved':'c-ok','Settled':'c-ok','Partially Settled':'c-rev'};
   return '<span class="chip '+(map[s]||'c-off')+'">'+esc(s)+'</span>';
 }
 
@@ -2222,6 +2237,7 @@ const ICONS = {
   mc:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M8 9v11"/><path d="M11.5 13h6M11.5 16.5h4"/></svg>',
   tsheet:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>',
   lhead:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M4 8h16M4 17h16M8 12h8"/></svg>',
+  adv:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 10v4M18 10v4"/></svg>',
   fuel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 22V4a1 1 0 0 1 1-1h7a1 1 0 0 1 1 1v18"/><path d="M3 10h9"/><path d="M14 8.5l3 2v7a1.5 1.5 0 0 0 3 0V10a2 2 0 0 0-.6-1.4L17 6.2"/><path d="M2 22h13"/></svg>'
 };
 const NAV = [
@@ -2255,6 +2271,9 @@ const NAV = [
   {id:'fuel', t:'Petrol Tracking', ic:'fuel'},
   {id:'timesheet', t:'Time Sheet', ic:'tsheet'},
   {id:'letterhead', t:'Letter Head', ic:'lhead'},
+  {id:'advance', t:'Advance Payment', ic:'adv'},
+  {id:'advance', sub:'individual', t:'Individual'},
+  {id:'advance', sub:'company', t:'Company'},
   {sec:'Administration'},
   {id:'mastercode', t:'Master Code', ic:'mc'},
   {id:'users', t:'Users & Roles', ic:'usr'},
@@ -2282,10 +2301,10 @@ function buildNav(){
     : n.sub
       // Sub-sections (e.g. Quotations -> Sample / Previous) open their
       // parent page on that tab.
-      ? '<button class="nav-item nav-sub'+(PAGE===n.id&&qtTab===n.sub?' on':'')+'" data-nav="'+n.id+'" data-sub="'+n.sub+'">'+esc(n.t)+'</button>'
+      ? '<button class="nav-item nav-sub'+(PAGE===n.id&&(n.id==='advance'?advTab:qtTab)===n.sub?' on':'')+'" data-nav="'+n.id+'" data-sub="'+n.sub+'">'+esc(n.t)+'</button>'
       : '<button class="nav-item'+(PAGE===n.id?' on':'')+'" data-nav="'+n.id+'">'+ICONS[n.ic]+esc(n.t)+'</button>'
   ).join('');
-  $$('#nav-list [data-nav]').forEach(b => b.onclick = ()=>{ if(b.dataset.nav==='quotations') qtTab = b.dataset.sub || 'previous'; nav(b.dataset.nav); });
+  $$('#nav-list [data-nav]').forEach(b => b.onclick = ()=>{ if(b.dataset.nav==='quotations') qtTab = b.dataset.sub || 'previous'; if(b.dataset.nav==='advance' && b.dataset.sub) advTab = b.dataset.sub; nav(b.dataset.nav); });
   $('#side-user').innerHTML = '<b>'+esc(u.name)+'</b><span>'+esc(u.role)+' · '+esc(u.title||'')+'</span>'+
     '<button id="btn-messages">✉ Messages'+(unreadMessageCount()?' <span class="chip c-fire" style="margin-left:4px">'+unreadMessageCount()+'</span>':'')+'</button>'+
     '<button id="btn-logout">Sign out</button>';
@@ -2715,7 +2734,7 @@ function render(){
   $('#main').classList.toggle('page-wide', PAGE==='ledger' || PAGE==='fuel' || PAGE==='timesheet');
   const fn = ({dashboard:rDashboard, enquiries:rEnquiries, bookings:rBookings, contacts:rContacts,
     ledger:rLedger, trialbalance:rTrialBalance, detailedtb:rDetailedTrialBalance, tbchart:rTBChartOfAccounts, placcount:rProfitLossAccount, cashflow:rCashFlow, arcostcentre:rReceivableAging, plsummary:rPLSummary, costexpense:rCostExpenseReports, quotations:rQuotations, invoices:rInvoices, receipts:rReceipts, payments:rPayments, balancesheet:rBalanceSheet,
-    followups:rFollowups, reminders:rReminders, users:rUsers, settings:rSettings, mastercode:rMasterCode, masteredit:rMasterEdit, pendingapproval:rPendingApproval, fuel:rFuel, timesheet:rTimeSheet, letterhead:rLetterHead})[PAGE] || rDashboard;
+    followups:rFollowups, reminders:rReminders, users:rUsers, settings:rSettings, mastercode:rMasterCode, masteredit:rMasterEdit, pendingapproval:rPendingApproval, fuel:rFuel, timesheet:rTimeSheet, letterhead:rLetterHead, advance:rAdvance})[PAGE] || rDashboard;
   fn($('#main'));
   populateCustomerDatalist();
 }
@@ -2752,7 +2771,7 @@ function rDashboard(m){
 
   const pendingAppr = S.vouchers.filter(v=>v.approvalStatus==='Pending Approval').length;
   const newEnq = enq.filter(e=>e.status==='New').length;
-  const today = new Date().toLocaleDateString('en-GB',{weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone:'Asia/Qatar'});
+  const today = new Date().toLocaleDateString('en-GB',{weekday:'long', timeZone:'Asia/Qatar'})+', '+new Date().toLocaleDateString('en-GB',{day:'2-digit', month:'2-digit', year:'numeric', timeZone:'Asia/Qatar'});
   const hr = Number(new Date().toLocaleString('en-GB',{hour:'2-digit', hour12:false, timeZone:'Asia/Qatar'}));
   const greet = hr<12 ? 'Good morning' : (hr<17 ? 'Good afternoon' : 'Good evening');
   const me = currentUser(), firstName = me && me.name ? String(me.name).split(' ')[0] : '';
@@ -2770,7 +2789,7 @@ function rDashboard(m){
 
   // Every headline card is the all-time total up to today, so each one is
   // labelled with today's date (Doha time) rather than a month comparison.
-  const asOn = new Date().toLocaleDateString('en-GB',{day:'numeric', month:'short', year:'numeric', timeZone:'Asia/Qatar'});
+  const asOn = new Date().toLocaleDateString('en-GB',{day:'2-digit', month:'2-digit', year:'numeric', timeZone:'Asia/Qatar'});
   const delta = () => '<span class="dx-delta"><i>As on</i> '+asOn+'</span>';
   const spark = (arr, color, id) => {
     const w = 120, h = 36, max = Math.max(...arr), min = Math.min(0, ...arr), rng = (max-min) || 1;
@@ -3040,7 +3059,7 @@ function readHTML(v){
   return (h || '<div class="empty">Nothing to read right now.</div>')+(v.stale?'<div class="tiny" style="margin-top:8px">Offline — showing the last saved page.</div>':'');
 }
 async function loadRead(force){
-  const ck = 'read', cached = dbStore(ck), today = new Date().toISOString().slice(0,10);
+  const ck = 'read', cached = dbStore(ck), today = todayISO();
   if(!force && cached && cached.day===today && Date.now()-cached.at < 3*3600000) return cached;
   try{ const v = {at:Date.now(), day:today, d:JSON.parse(await feedGet('wiki'))}; dbStore(ck, v); return v; }
   catch(e){ if(cached) return Object.assign({}, cached, {stale:true}); throw e; }
@@ -4230,9 +4249,18 @@ function fuelTravelled(entry){
   const prev = fuelPrevEntry(entry);
   return prev ? (entry.km - prev.km) : null;
 }
-// Regular driver for each vehicle (by plate no.) -- filled in
-// automatically on a new Petrol Tracking entry; can still be changed.
-const FUEL_DEFAULT_DRIVERS = {'685541':'Akbar Sha', '874281':'Moosa kutty'};
+// Regular drivers for each vehicle (by plate no.). The first is filled in
+// automatically on a new Petrol Tracking entry; the Driver name list on the
+// entry offers all of them (plus names used before for that vehicle, or any
+// other name).
+const FUEL_DRIVERS = {'685541':['Akbar Sha','Ayoob Khan'], '874281':['Moosa kutty']};
+const FUEL_DEFAULT_DRIVERS = Object.fromEntries(Object.entries(FUEL_DRIVERS).map(([p,d])=>[p,d[0]]));
+function fuelDriverOptions(eq){
+  const out = [], seen = new Set(), add = n=>{ const v = String(n||'').trim(), k = v.toLowerCase(); if(v && !seen.has(k)){ seen.add(k); out.push(v); } };
+  ((eq && FUEL_DRIVERS[eq.plate]) || []).forEach(add);
+  S.fuelLogs.filter(x=>eq && x.equipmentId===eq.id).sort((a,b)=>b.date.localeCompare(a.date)).forEach(x=>add(x.driver));
+  return out.slice(0, 12);
+}
 function fuelPlate(eq){ return eq ? ((eq.plate && eq.plate!=='—') ? eq.plate : eq.name) : '—'; }
 // Net KM = this entry's odometer minus the same vehicle's previous entry
 // (only when both readings were entered). Average = Net KM per litre.
@@ -4251,9 +4279,9 @@ function fuelGroups(rows){
   rows.forEach(f=>{ const p = fuelPlate(S.equipment.find(x=>x.id===f.equipmentId)); (byPlate[p] = byPlate[p] || []).push(f); });
   const want = fuelFilter.eq ? [fuelPlate(S.equipment.find(x=>x.id===fuelFilter.eq))] : Object.keys(FUEL_DEFAULT_DRIVERS);
   const plates = want.concat(Object.keys(byPlate).filter(p=>!want.includes(p)).sort());
-  return plates.map(p=>({plate:p, driver:FUEL_DEFAULT_DRIVERS[p]||'', rows:byPlate[p]||[]}));
+  return plates.map(p=>({plate:p, driver:(FUEL_DRIVERS[p]||[]).join(' / '), rows:byPlate[p]||[]}));
 }
-function fuelShortDate(iso){ const d = fdate(iso); return d.replace(/ (\d{2})(\d{2})$/, ' $2'); }   // 05 Oct 2026 -> 05 Oct 26
+function fuelShortDate(iso){ const d = fdate(iso); return d.replace(/\/(\d{2})(\d{2})$/, '/$2'); }   // 05/10/2026 -> 05/10/26
 function fuelDefaultDriver(eq){ return (eq && FUEL_DEFAULT_DRIVERS[eq.plate]) || ''; }
 function rFuel(m){
   const edit = can('fuel','edit');
@@ -4491,7 +4519,8 @@ function fuelForm(f, presetEq){
     '<div class="frow"><div class="f"><label>Plate no *</label><select id="fl-eqid">'+
       S.equipment.map(x=>'<option value="'+x.id+'"'+(f.equipmentId===x.id?' selected':'')+'>'+esc(eqName(x.id))+'</option>').join('')+
     '</select></div>'+
-    '<div class="f"><label>Driver name</label><input id="fl-dr" value="'+esc(f.driver||'')+'"></div></div>'+
+    '<div class="f"><label>Driver name</label><select id="fl-drs"></select>'+
+      '<input id="fl-dr" placeholder="Type the driver\'s name" style="margin-top:6px;display:none" value="'+esc(f.driver||'')+'"></div></div>'+
     '<div id="fl-veh" style="margin:2px 0 10px;padding:11px;background:var(--paper);border-radius:9px"></div>'+
     '<div class="frow"><div class="f"><label>Date *</label><input type="date" id="fl-dt" value="'+f.date+'"></div>'+
     '<div class="f"><label>Amount ('+CUR+')</label><input type="number" step="0.01" id="fl-am" value="'+(f.amount||0)+'"></div></div>'+
@@ -4504,7 +4533,7 @@ function fuelForm(f, presetEq){
       if(!eqid){ toast('Pick a vehicle.', true); return false; }
       if(!dt){ toast('Fuel date is required.', true); return false; }
       if(isNew){ f.id = uid('fl'); S.fuelLogs.push(f); }
-      f.equipmentId = eqid; f.date = dt; f.driver = val({node:mo},'fl-dr'); f.km = km;
+      f.equipmentId = eqid; f.date = dt; f.driver = val({node:mo},'fl-drs')==='__other__' ? val({node:mo},'fl-dr') : val({node:mo},'fl-drs'); f.km = km;
       f.amount = numval({node:mo},'fl-am'); f.litres = numval({node:mo},'fl-lt'); f.notes = val({node:mo},'fl-no');
       logAudit(isNew?'Fuel entry added':'Fuel entry updated', eqName(eqid)+' · '+fdate(dt)+' · '+fmt0(km)+' km');
       save(); render();
@@ -4527,10 +4556,22 @@ function fuelForm(f, presetEq){
       ? ('Last logged fill for this vehicle: '+fdate(prev.date)+' at '+fmt0(prev.km)+' km — KM travelled since then will be calculated automatically.')
       : 'No previous fill on file for this vehicle yet — this will be its first logged entry.';
   };
+  // Driver name: a list of the vehicle's drivers (and names used before for
+  // it), with "Other name" opening a box to type any name.
+  const drs = $('#fl-drs'), dr = $('#fl-dr');
+  const fillDrivers = (pick)=>{
+    const opts = fuelDriverOptions(S.equipment.find(x=>x.id===$('#fl-eqid').value));
+    if(pick && !opts.some(o=>o.toLowerCase()===pick.toLowerCase())) opts.push(pick);
+    drs.innerHTML = '<option value="">— select —</option>'+opts.map(o=>'<option'+(pick && o.toLowerCase()===pick.toLowerCase()?' selected':'')+'>'+esc(o)+'</option>').join('')+
+      '<option value="__other__">+ Other name…</option>';
+    dr.style.display = 'none';
+  };
+  drs.onchange = ()=>{ const other = drs.value==='__other__'; dr.style.display = other ? '' : 'none'; if(other){ dr.value = ''; dr.focus(); } };
+  fillDrivers(f.driver||'');
   $('#fl-eqid').onchange = ()=>{
-    // Fill in the vehicle's regular driver unless a different name was typed.
-    const dr = $('#fl-dr'), cur = dr.value.trim();
-    if(!cur || Object.values(FUEL_DEFAULT_DRIVERS).includes(cur)) dr.value = fuelDefaultDriver(S.equipment.find(x=>x.id===$('#fl-eqid').value));
+    // Switch to the new vehicle's regular driver unless a different name was typed.
+    const typed = drs.value==='__other__' ? dr.value.trim() : '';
+    fillDrivers(typed || fuelDefaultDriver(S.equipment.find(x=>x.id===$('#fl-eqid').value)));
     updatePrev();
   };
   updatePrev();
@@ -6458,6 +6499,28 @@ function drawInvoiceList(host, filterFn, emptyMsg, showRestore){
     });
   });
 }
+// Line-item descriptions already used on invoices (newest first), then on
+// quotations, without repeats -- offered as suggestions while typing a new
+// invoice line so the same wording needn't be typed again.
+function itemDescSuggestions(){
+  const seen = new Set(), out = [];
+  const add = list => list.slice().sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).forEach(x=>(x.items||[]).forEach(i=>{
+    const d = String(i.desc||'').trim(), k = d.toLowerCase();
+    if(d && !seen.has(k)){ seen.add(k); out.push(d); }
+  }));
+  add(S.invoices||[]); add(S.quotations||[]);
+  return out.slice(0, 300);
+}
+// "Paid to" names and narrations already used on payment vouchers, newest
+// first and without repeats -- suggested while filling a new one.
+function pvSuggestions(field){
+  const seen = new Set(), out = [];
+  (S.vouchers||[]).filter(v=>v.kind==='PV').sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).forEach(v=>{
+    const d = String(v[field]||'').trim(), k = d.toLowerCase();
+    if(d && !seen.has(k)){ seen.add(k); out.push(d); }
+  });
+  return out.slice(0, 300);
+}
 function invoiceForm(v, fromBk, presetCompany){
   const isNew = !v;
   v = v || {date:todayISO(), customer:fromBk?fromBk.company:(presetCompany||''), attn:fromBk?fromBk.contact:'', bookingId:fromBk?fromBk.id:null,
@@ -6551,8 +6614,9 @@ function invoiceForm(v, fromBk, presetCompany){
     }});
   const readItems = ()=>{ $$('#i-items .it').forEach((r,i)=>{ items[i].desc=r.querySelector('.d').value; items[i].qty=+r.querySelector('.q').value||1; items[i].days=+r.querySelector('.dy').value||1; items[i].rate=+r.querySelector('.r2').value||0; }); };
   const drawItems = ()=>{
-    $('#i-items').innerHTML = items.map((i,n)=>'<div class="it" style="display:grid;grid-template-columns:1fr 64px 64px 100px;gap:7px;margin-bottom:4px">'+
-      '<input class="d" placeholder="Description" value="'+esc(i.desc)+'"><input class="q" type="number" min="1" title="Qty" value="'+i.qty+'"><input class="dy" type="number" min="1" title="Days" value="'+(i.days||1)+'">'+
+    $('#i-items').innerHTML = '<datalist id="dl-inv-desc">'+itemDescSuggestions().map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>'+
+      items.map((i,n)=>'<div class="it" style="display:grid;grid-template-columns:1fr 64px 64px 100px;gap:7px;margin-bottom:4px">'+
+      '<input class="d" list="dl-inv-desc" autocomplete="off" placeholder="Description — type or pick a previous one" value="'+esc(i.desc)+'"><input class="q" type="number" min="1" title="Qty" value="'+i.qty+'"><input class="dy" type="number" min="1" title="Days" value="'+(i.days||1)+'">'+
       '<input class="r2" type="number" step="0.01" placeholder="Rate" value="'+i.rate+'"></div>').join('');
   };
   drawItems();
@@ -7764,8 +7828,10 @@ function voucherForm(kind, pickedInvId, editV){
       '<div class="tiny" style="margin-top:2px">'+(pickedInv?'This will also post both the Invoice Set 1 &amp; Set 2 above and this New Receipt Set 1 &amp; Set 2 to the General Ledger, properly linked to this voucher — deleting the voucher removes all of them again.':'This will also create a matching entry in the General Ledger, properly linked to this voucher — the two always stay in sync.')+'</div>'
     ) : (
       '<div class="frow"><div class="f"><label>Date</label><input type="date" id="w-dt" value="'+(editV?editV.date:todayISO())+'"></div>'+
-      '<div class="f"><label>Paid to *</label><input id="w-pa" placeholder="e.g. XYZ Trading" value="'+esc(editV?editV.party||'':'')+'"></div></div>'+
-      '<div class="f"><label>Being / narration *</label><input id="w-de" placeholder="e.g. Office rent for August" value="'+esc(editV?editV.desc||'':'')+'"></div>'+
+      '<div class="f"><label>Paid to *</label><input id="w-pa" list="dl-pv-party" autocomplete="off" placeholder="e.g. XYZ Trading" value="'+esc(editV?editV.party||'':'')+'"></div></div>'+
+      '<div class="f"><label>Being / narration *</label><input id="w-de" list="dl-pv-desc" autocomplete="off" placeholder="e.g. Office rent for August" value="'+esc(editV?editV.desc||'':'')+'"></div>'+
+      '<datalist id="dl-pv-party">'+pvSuggestions('party').map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>'+
+      '<datalist id="dl-pv-desc">'+pvSuggestions('desc').map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>'+
       '<div style="font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:10px 0 4px">Payment Set 1 &amp; Set 2</div>'+
       '<div class="frow" style="gap:12px">'+set1Html+set2Html+'</div>'+
       chequeHtml+
@@ -7810,6 +7876,14 @@ function voucherForm(kind, pickedInvId, editV){
   // change event.
   if(me1El && me2El) me1El.addEventListener('change', ()=>{ me2El.value = me1El.value; });
   if(dt1El && dt2El) dt1El.addEventListener('change', ()=>{ dt2El.value = dt1El.value; });
+  // The voucher's own Date at the top fills both Sets' dates; either Set
+  // can still be changed by hand afterwards.
+  const wdtEl = $('#w-dt');
+  if(wdtEl) ['input','change'].forEach(ev=>wdtEl.addEventListener(ev, ()=>{
+    if(!wdtEl.value) return;
+    if(dt1El) dt1El.value = wdtEl.value;
+    if(dt2El) dt2El.value = wdtEl.value;
+  }));
 }
 // Read-only "View" for a saved Receipt/Payment voucher -- everything the
 // printed copy shows (party, amount, method, being, booking/invoice link,
@@ -7913,6 +7987,279 @@ function viewVoucher(v){
   // .huge (min(1600px, 96vw)) -- this view packs the voucher's full detail
   // plus up to 4 Set cards side by side, and the extra width is what lets
   // it all sit on one screen with no scrolling in either direction.
+}
+/* ---------------- ADVANCE PAYMENT ---------------- */
+// Business / Advance Payment: a stand-alone register of advances paid to
+// individuals and to companies. It never posts to S.transactions or the
+// General Ledger and links to nothing else; it only keeps its own list in
+// S.advances, with a printable advance payment voucher for each one.
+let advTab = 'individual';
+let advFilter = {q:'', from:'', to:'', st:''};
+const ADV_TYPES = {individual:'Individual', company:'Company'};
+function advSettled(a){ return round2(Math.min(+a.settled||0, +a.amount||0)); }
+function advBalance(a){ return round2((+a.amount||0) - advSettled(a)); }
+function advStatus(a){ const s = advSettled(a); return advBalance(a) <= 0 && (+a.amount||0) > 0 ? 'Settled' : (s > 0 ? 'Partially Settled' : 'Open'); }
+function advNames(type){
+  const seen = new Set(), out = [];
+  (S.advances||[]).filter(a=>a.type===type).sort((a,b)=>String(b.date||'').localeCompare(String(a.date||''))).forEach(a=>{
+    const d = String(a.name||'').trim(), k = d.toLowerCase();
+    if(d && !seen.has(k)){ seen.add(k); out.push(d); }
+  });
+  return out.slice(0, 300);
+}
+// Dates shown and typed as DD/MM/YYYY whatever the computer's language is
+// set to (a plain <input type="date"> follows Windows and can show
+// MM/DD/YYYY). The text box takes the date; the calendar button opens the
+// phone's or PC's own date picker through a hidden date input.
+const fdmy = iso => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso||'')); return m ? m[3]+'/'+m[2]+'/'+m[1] : ''; };
+function dmyToISO(s){
+  const m = /^\s*(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{4})\s*$/.exec(String(s||'')); if(!m) return '';
+  const d = +m[1], mo = +m[2], y = +m[3], dt = new Date(Date.UTC(y, mo-1, d));
+  if(dt.getUTCFullYear()!==y || dt.getUTCMonth()!==mo-1 || dt.getUTCDate()!==d) return '';
+  return dt.toISOString().slice(0,10);
+}
+const DMY_CAL = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+function dmyInputHTML(id, iso, title){
+  return '<span class="dmy"><input id="'+id+'" class="dmy-t" inputmode="numeric" autocomplete="off" placeholder="DD/MM/YYYY" maxlength="10" value="'+fdmy(iso)+'"'+(title?' title="'+esc(title)+'"':'')+'>'+
+    '<button type="button" class="dmy-b" title="Pick a date" aria-label="Pick a date">'+DMY_CAL+'</button>'+
+    '<input type="date" class="dmy-p" tabindex="-1" aria-hidden="true" value="'+(iso||'')+'"></span>';
+}
+// onChange(textInput) runs when a whole valid date is typed or picked, or the box is cleared.
+function wireDmy(root, onChange){
+  root.querySelectorAll('.dmy').forEach(w=>{
+    const t = w.querySelector('.dmy-t'), p = w.querySelector('.dmy-p'), b = w.querySelector('.dmy-b');
+    const check = ()=>{ const ok = !t.value || !!dmyToISO(t.value); t.classList.toggle('dmy-bad', !ok); return ok; };
+    b.onclick = ()=>{ p.value = dmyToISO(t.value) || todayISO(); try{ p.showPicker(); }catch(e){ p.focus(); p.click(); } };
+    p.onchange = ()=>{ if(p.value){ t.value = fdmy(p.value); check(); if(onChange) onChange(t); } };
+    t.oninput = e=>{
+      // Typing 24112026 fills in the slashes: 24/11/2026.
+      if(e && e.inputType && e.inputType.indexOf('insert')===0 && /^[\d\/]*$/.test(t.value) && t.value.indexOf('/')<0){
+        const d = t.value.slice(0,8);
+        t.value = d.slice(0,2)+(d.length>2?'/'+d.slice(2,4):'')+(d.length>4?'/'+d.slice(4):'');
+      }
+      if(check() && onChange && (!t.value || t.value.length>=8)) onChange(t);
+    };
+    t.onblur = check;
+  });
+}
+// Every <input type="date"> in the app is shown as a DD/MM/YYYY text box
+// (Windows and phones otherwise show the date in their own order, often
+// MM/DD/YYYY). The original date input stays in the page, hidden, with its
+// id, value (YYYY-MM-DD) and handlers, so every form and filter keeps
+// reading and setting it as before; the text box writes to it and fires
+// its input/change events, and setting its value from code updates the box.
+const DATE_INPUT_VALUE = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+function enhanceDateInput(n){
+  if(n.dataset.dmy || n.classList.contains('dmy-p') || (n.closest && n.closest('.dmy'))) return;
+  n.dataset.dmy = '1';
+  const w = document.createElement('span'); w.className = 'dmy dmy-auto';
+  const t = document.createElement('input');
+  t.className = ('dmy-t '+n.className).trim(); t.setAttribute('inputmode','numeric'); t.autocomplete = 'off';
+  t.placeholder = 'DD/MM/YYYY'; t.maxLength = 10;
+  if(n.getAttribute('style')) t.setAttribute('style', n.getAttribute('style'));
+  if(n.title) t.title = n.title;
+  t.disabled = n.disabled; t.readOnly = n.readOnly;
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'dmy-b'; b.title = 'Pick a date'; b.setAttribute('aria-label','Pick a date'); b.innerHTML = DMY_CAL;
+  if(n.disabled || n.readOnly) b.style.display = 'none';
+  n.parentNode.insertBefore(w, n); w.appendChild(t); w.appendChild(b); w.appendChild(n);
+  n.classList.add('dmy-p'); n.tabIndex = -1; n.setAttribute('aria-hidden','true');
+  const show = ()=>{ const iso = DATE_INPUT_VALUE.get.call(n); if(dmyToISO(t.value)!==iso) t.value = fdmy(iso); t.classList.remove('dmy-bad'); };
+  Object.defineProperty(n, 'value', {configurable:true,
+    get(){ return DATE_INPUT_VALUE.get.call(this); },
+    set(v){ DATE_INPUT_VALUE.set.call(this, v); show(); }});
+  t.value = fdmy(n.value);
+  const push = iso=>{
+    if(DATE_INPUT_VALUE.get.call(n) === iso) return;
+    DATE_INPUT_VALUE.set.call(n, iso);
+    n.dispatchEvent(new Event('input', {bubbles:true}));
+    n.dispatchEvent(new Event('change', {bubbles:true}));
+  };
+  t.addEventListener('input', e=>{
+    if(e.inputType && e.inputType.indexOf('insert')===0 && /^\d*$/.test(t.value)){
+      const d = t.value.slice(0,8);
+      t.value = d.slice(0,2)+(d.length>2?'/'+d.slice(2,4):'')+(d.length>4?'/'+d.slice(4):'');
+    }
+    if(!t.value){ t.classList.remove('dmy-bad'); push(''); return; }
+    const iso = dmyToISO(t.value);
+    if(iso){ t.classList.remove('dmy-bad'); push(iso); }
+    else if(t.value.length>=10) t.classList.add('dmy-bad');
+  });
+  // A date that doesn't exist (31/02/2026) or isn't complete goes back to the last good one.
+  t.addEventListener('blur', ()=>{ if(t.value && !dmyToISO(t.value)){ toast('Enter the date as DD/MM/YYYY, e.g. 25/11/2026.', true); t.value = ''; } show(); });
+  n.addEventListener('change', show);
+  b.onclick = ()=>{ if(t.disabled) return; try{ n.showPicker(); }catch(e){ n.focus(); n.click(); } };
+}
+function enhanceDateInputs(root){
+  if(!root || !root.querySelectorAll) return;
+  if(root.matches && root.matches('input[type=date]')) enhanceDateInput(root);
+  root.querySelectorAll('input[type=date]').forEach(enhanceDateInput);
+}
+(function(){
+  if(!window.MutationObserver) return;
+  const start = ()=>{
+    enhanceDateInputs(document.body);
+    new MutationObserver(list=>list.forEach(r=>r.addedNodes.forEach(nd=>{ if(nd.nodeType===1) enhanceDateInputs(nd); })))
+      .observe(document.body, {childList:true, subtree:true});
+  };
+  if(document.body) start(); else document.addEventListener('DOMContentLoaded', start);
+})();
+function rAdvance(m){
+  if(!S.advances) S.advances = [];
+  if(!ADV_TYPES[advTab]) advTab = 'individual';
+  const edit = can('advance','edit'), isCo = advTab==='company';
+  const list = ()=> S.advances.filter(a=>a.type===advTab &&
+      (!advFilter.q || [a.no,a.name,a.idNo,a.contact,a.phone,a.purpose].join(' ').toLowerCase().includes(advFilter.q.toLowerCase())) &&
+      (!advFilter.st || advStatus(a)===advFilter.st) &&
+      inRange(a.date, advFilter.from, advFilter.to))
+    .sort((a,b)=>String(b.date).localeCompare(String(a.date)) || String(b.no).localeCompare(String(a.no), undefined, {numeric:true}));
+  m.innerHTML = pageHead('Business','Advance Payment',
+    '<button class="btn" id="adv-x">Export Excel</button><button class="btn" id="adv-p">Export PDF</button>'+
+    (edit?'<button class="btn fire" id="adv-new">+ New advance ('+ADV_TYPES[advTab]+')</button>':''))+
+  '<div class="tabs">'+Object.keys(ADV_TYPES).map(k=>
+    '<button class="tab'+(advTab===k?' on':'')+'" data-t="'+k+'">'+ADV_TYPES[k]+'</button>').join('')+'</div>'+
+  '<div class="tiny" style="margin:-4px 0 10px">Stand-alone record. Nothing here posts to the General Ledger or links to other pages.</div>'+
+  '<div class="filters">'+
+    '<input type="search" id="adv-q" placeholder="Search name, '+(isCo?'CR no':'QID')+', purpose…" value="'+esc(advFilter.q)+'">'+
+    '<select id="adv-st"><option value="">All statuses</option>'+['Open','Partially Settled','Settled'].map(s=>'<option'+(advFilter.st===s?' selected':'')+'>'+s+'</option>').join('')+'</select>'+
+    dmyInputHTML('adv-f', advFilter.from, 'From date')+dmyInputHTML('adv-t', advFilter.to, 'To date')+
+  '</div>'+
+  '<div id="adv-kpis"></div><div id="adv-list"></div>';
+  $$('.tabs .tab',m).forEach(b=>b.onclick=()=>{ advTab=b.dataset.t; render(); });
+  const HEAD = ['Advance No','Date', isCo?'Company':'Name', isCo?'CR No':'QID / ID No', isCo?'Contact person':'Mobile', 'Mode','Purpose','Amount '+CUR,'Settled '+CUR,'Balance '+CUR,'Status'];
+  const rowOf = a=>[a.no, fdmy(a.date), a.name||'', a.idNo||'', isCo?(a.contact||''):(a.phone||''), a.method||'', a.purpose||'', +a.amount||0, advSettled(a), advBalance(a), advStatus(a)];
+  const sum = (rows, f)=> round2(rows.reduce((t,a)=>t+f(a),0));
+  const draw = ()=>{
+    const rows = list();
+    const tAmt = sum(rows, a=>+a.amount||0), tSet = sum(rows, advSettled), tBal = sum(rows, advBalance);
+    $('#adv-kpis').innerHTML = '<div class="kpis">'+
+      kpi('Total advanced', money(tAmt), rows.length+' advance'+(rows.length===1?'':'s'))+
+      kpi('Settled', money(tSet), '')+
+      kpi('Balance outstanding', money(tBal), rows.filter(a=>advBalance(a)>0).length+' open')+'</div>';
+    $('#adv-list').innerHTML = tbl(['Advance No','Date',isCo?'Company':'Name',isCo?'CR No':'QID / ID No',isCo?'Contact':'Mobile','Purpose',{t:'Amount',r:1},{t:'Settled',r:1},{t:'Balance',r:1},'Status',''],
+      rows.map(a=>'<tr class="row"><td class="code">'+esc(a.no)+'</td><td>'+fdmy(a.date)+'</td><td><b>'+esc(a.name||'')+'</b></td>'+
+        '<td>'+esc(a.idNo||'—')+'</td><td>'+esc((isCo?a.contact:a.phone)||'—')+'</td>'+
+        '<td title="'+esc(a.purpose||'')+'">'+esc(a.purpose||'—')+'</td>'+
+        '<td class="r num">'+fmt(+a.amount||0)+'</td><td class="r num">'+fmt(advSettled(a))+'</td><td class="r num"><b>'+fmt(advBalance(a))+'</b></td>'+
+        '<td>'+statusChip(advStatus(a))+'</td>'+
+        '<td style="white-space:nowrap"><button class="btn sm" data-advpr="'+a.id+'" title="Print">Print</button>'+
+        (edit?' <button class="btn sm" data-adved="'+a.id+'" title="Edit">✎</button> <button class="btn sm danger" data-advdel="'+a.id+'" title="Delete">✕</button>':'')+'</td></tr>').join('')
+        || emptyRow(11, edit?'Press "+ New advance" to record one.':'No advances recorded yet.'),
+      rows.length?'<tr><td colspan="6" class="r">Total</td><td class="r num">'+fmt(tAmt)+'</td><td class="r num">'+fmt(tSet)+'</td><td class="r num">'+fmt(tBal)+'</td><td colspan="2"></td></tr>':'');
+    $$('#adv-list [data-advpr]').forEach(x=>x.onclick=()=>printAdvance(S.advances.find(a=>a.id===x.dataset.advpr)));
+    $$('#adv-list [data-adved]').forEach(x=>x.onclick=()=>advanceForm(S.advances.find(a=>a.id===x.dataset.adved)));
+    $$('#adv-list [data-advdel]').forEach(x=>x.onclick=()=>{
+      const a = S.advances.find(y=>y.id===x.dataset.advdel); if(!a) return;
+      confirmDlg('Delete advance '+a.no+' ('+(a.name||'')+', '+money(+a.amount||0)+')? This cannot be undone.', ()=>{
+        S.advances = S.advances.filter(y=>y.id!==a.id);
+        logAudit('Advance payment deleted', a.no+' · '+(a.name||'')); save(); render();
+        toast('Advance deleted.');
+      });
+    });
+  };
+  draw();
+  const nb = $('#adv-new'); if(nb) nb.onclick = ()=>advanceForm(null);
+  $('#adv-q').oninput = e=>{ advFilter.q = e.target.value; draw(); };
+  $('#adv-st').onchange = e=>{ advFilter.st = e.target.value; draw(); };
+  wireDmy($('.filters', m), t=>{ advFilter[t.id==='adv-f'?'from':'to'] = dmyToISO(t.value); draw(); });
+  $('#adv-x').onclick = ()=>{ const rows = list();
+    exportXLSX('Flame_Advance_Payment_'+ADV_TYPES[advTab]+'.xlsx', [{name:'Advance '+ADV_TYPES[advTab], rows:[HEAD, ...rows.map(rowOf),
+      ['','','','','','','Total', sum(rows,a=>+a.amount||0), sum(rows,advSettled), sum(rows,advBalance), '']]}]); };
+  $('#adv-p').onclick = ()=>{ const rows = list();
+    const cols = ['No','Date', isCo?'Company':'Name', isCo?'CR No':'QID', 'Purpose','Amount','Settled','Balance'];
+    exportPDF('Advance Payment — '+ADV_TYPES[advTab], cols,
+      rows.map(a=>[a.no, fdmy(a.date), a.name||'', a.idNo||'', a.purpose||'', fmt(+a.amount||0), fmt(advSettled(a)), fmt(advBalance(a))]),
+      ['','','','','Total', fmt(sum(rows,a=>+a.amount||0)), fmt(sum(rows,advSettled)), fmt(sum(rows,advBalance))]); };
+}
+function advanceForm(a){
+  const isNew = !a;
+  const type = a ? a.type : advTab;
+  const isCo = type==='company';
+  if(!a) a = {type, date:todayISO(), name:'', idNo:'', contact:'', phone:'', amount:0, method:'Cash', ref:'', purpose:'', settled:0, notes:'', attachSeal:false, attachSign:false};
+  const build = (mo)=>{
+    const g = id=>val({node:mo}, id);
+    const name = g('adv-nm'), amount = round2(numval({node:mo}, 'adv-am')), settled = round2(numval({node:mo}, 'adv-se'));
+    const dateISO = dmyToISO(g('adv-dt'));
+    if(!dateISO){ toast('Enter the date as DD/MM/YYYY, e.g. 24/11/2026.', true); return false; }
+    if(!name){ toast((isCo?'Company':'Name')+' is required.', true); return false; }
+    if(!(amount > 0)){ toast('Enter the advance amount.', true); return false; }
+    if(settled < 0 || settled > amount){ toast('Settled amount must be between 0 and the advance amount.', true); return false; }
+    const rec = isNew ? {id:uid('adv'), type, created:new Date().toISOString(), by:(currentUser()||{}).name||''} : a;
+    Object.assign(rec, {date:dateISO, name, idNo:g('adv-id'), contact:isCo?g('adv-ct'):'', phone:g('adv-ph'),
+      amount, method:g('adv-md'), ref:g('adv-rf'), purpose:g('adv-pu'), settled, notes:g('adv-no'),
+      attachSeal:!!mo.querySelector('#adv-seal').checked, attachSign:!!mo.querySelector('#adv-sign').checked});
+    if(isNew){
+      if(!S.meta.seq) S.meta.seq = {};
+      S.meta.seq.adv = (S.meta.seq.adv||0) + 1;
+      rec.no = 'ADV-'+String(rec.date).slice(0,4)+'-'+String(S.meta.seq.adv).padStart(3,'0');
+      S.advances.push(rec);
+    }
+    logAudit(isNew?'Advance payment added':'Advance payment edited', rec.no+' · '+rec.name+' · '+money(rec.amount));
+    save(); render();
+    toast('Advance '+rec.no+' saved.');
+    return rec;
+  };
+  const methods = ['Cash','Cheque','Bank Transfer'];
+  const mm = modal((isNew?'New advance payment':'Edit advance '+a.no)+' — '+ADV_TYPES[type],
+    '<div class="frow"><div class="f"><label>Date * <span class="tiny">(DD/MM/YYYY)</span></label>'+dmyInputHTML('adv-dt', a.date)+'</div>'+
+    '<div class="f"><label>'+(isCo?'Company name *':'Name *')+'</label><input id="adv-nm" list="dl-adv-name" autocomplete="off" placeholder="'+(isCo?'e.g. XYZ Trading WLL':'e.g. Mohammed Ali')+'" value="'+esc(a.name)+'"></div></div>'+
+    '<datalist id="dl-adv-name">'+advNames(type).map(d=>'<option value="'+esc(d)+'">').join('')+'</datalist>'+
+    '<div class="frow"><div class="f"><label>'+(isCo?'CR No':'QID / ID No')+'</label><input id="adv-id" value="'+esc(a.idNo||'')+'"></div>'+
+    (isCo?'<div class="f"><label>Contact person</label><input id="adv-ct" value="'+esc(a.contact||'')+'"></div>':'')+
+    '<div class="f"><label>Mobile</label><input id="adv-ph" inputmode="tel" value="'+esc(a.phone||'')+'"></div></div>'+
+    '<div class="frow"><div class="f"><label>Advance amount ('+CUR+') *</label><input type="number" step="0.01" min="0" id="adv-am" value="'+(+a.amount||'')+'"></div>'+
+    '<div class="f"><label>Mode of payment</label><select id="adv-md">'+methods.map(x=>'<option'+(a.method===x?' selected':'')+'>'+x+'</option>').join('')+'</select></div>'+
+    '<div class="f"><label>Cheque / reference no</label><input id="adv-rf" value="'+esc(a.ref||'')+'"></div></div>'+
+    '<div class="f"><label>Purpose / being</label><input id="adv-pu" placeholder="e.g. Advance against salary for December" value="'+esc(a.purpose||'')+'"></div>'+
+    '<div class="frow"><div class="f"><label>Amount settled / recovered ('+CUR+')</label><input type="number" step="0.01" min="0" id="adv-se" value="'+(+a.settled||0)+'"></div>'+
+    '<div class="f"><label>Balance ('+CUR+')</label><input id="adv-bal" disabled></div></div>'+
+    '<div class="f"><label>Notes</label><input id="adv-no" value="'+esc(a.notes||'')+'"></div>'+
+    '<label class="tiny" style="display:block;margin-top:6px"><input type="checkbox" id="adv-seal"'+(a.attachSeal?' checked':'')+'> Attach company seal when printed</label>'+
+    '<label class="tiny" style="display:block;margin-top:4px"><input type="checkbox" id="adv-sign"'+(a.attachSign?' checked':'')+'> Attach Stanly Sign when printed</label>',
+    {saveLabel:'Save advance', extraLabel:'Save & print', wide:true,
+      onSave:(mo)=>build(mo)!==false,
+      onExtra:(mo)=>{ const r = build(mo); if(r===false) return false; printAdvance(r); }});
+  const am = mm.node.querySelector('#adv-am'), se = mm.node.querySelector('#adv-se'), bal = mm.node.querySelector('#adv-bal');
+  const upd = ()=>{ bal.value = fmt(round2((parseFloat(am.value)||0) - (parseFloat(se.value)||0))); };
+  am.oninput = upd; se.oninput = upd; upd();
+  wireDmy(mm.node);
+}
+function printAdvance(a){
+  if(!a) return;
+  const cr = S.meta.crNo || '—', cl = S.meta.clNo || '—';
+  const SLOGAN = 'Powering Trade · Building the Future';
+  const isCo = a.type==='company';
+  const row = (k, v)=> '<tr><th style="width:32%">'+k+'</th><td>'+v+'</td></tr>';
+  printDoc('<div class="doc">'+
+    '<div class="app-header" style="margin-bottom:44px">'+
+      '<div class="app-header-body"><div class="app-header-name">'+esc(S.meta.company)+'</div>'+
+      '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:13px;font-weight:600;color:#fff">'+SLOGAN+'</div>'+
+      '<div class="app-header-tag" style="letter-spacing:.03em;font-size:12px;color:#fff;margin-top:5px">CR No. '+esc(cr)+'&nbsp;&nbsp;·&nbsp;&nbsp;CL No. '+esc(cl)+'</div></div>'+
+      '<img class="app-header-logo-img" style="width:66px;height:66px" src="'+LOGO+'" alt="">'+
+    '</div>'+
+    '<div class="doc-title" style="text-align:right;margin:0 0 44px"><b>ADVANCE PAYMENT VOUCHER</b><div>'+esc(a.no)+'</div><div>Date: '+fdmy(a.date)+'</div></div>'+
+    '<table>'+
+      row('Paid to ('+(isCo?'company':'individual')+')', esc(a.name||''))+
+      (a.idNo?row(isCo?'CR No':'QID / ID No', esc(a.idNo)):'')+
+      (isCo && a.contact?row('Contact person', esc(a.contact)):'')+
+      (a.phone?row('Mobile', esc(a.phone)):'')+
+      row('Advance amount', '<b>'+CUR+' '+fmt(+a.amount||0)+'</b>')+
+      row('Mode of payment', esc(a.method||''))+
+      (a.ref?row(a.method==='Cheque'?'Cheque No':'Reference no', esc(a.ref)):'')+
+      row('Being', esc(a.purpose||''))+
+      (advSettled(a)>0?row('Settled so far', CUR+' '+fmt(advSettled(a)))+row('Balance', '<b>'+CUR+' '+fmt(advBalance(a))+'</b>'):'')+
+      (a.notes?row('Notes', esc(a.notes)):'')+
+    '</table>'+
+    '<div style="height:44px"></div>'+
+    sigBlock(a.attachSeal, a.attachSign)+
+    '<div class="app-header" style="margin-top:46px;margin-bottom:0;page-break-inside:avoid;break-inside:avoid">'+
+      '<div class="app-header-body"><div class="app-header-name">'+esc(S.meta.company)+'</div>'+
+      '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:13px;font-weight:600;color:#fff;margin-top:4px">'+SLOGAN+'</div>'+
+      '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:12.5px;color:#fff;margin-top:3px"><b>Tel:</b> +974 55400916 / 55400906</div>'+
+      '<div class="app-header-tag" style="text-transform:none;letter-spacing:normal;font-size:12.5px;color:#fff;margin-top:3px"><b>Email:</b> <a href="mailto:sales@flamects.com" style="color:inherit;text-decoration:none">sales@flamects.com</a>'+
+        '&nbsp;&nbsp;·&nbsp;&nbsp;<b>Web:</b> <a href="https://www.flamects.com" style="color:inherit;text-decoration:none">www.flamects.com</a></div></div>'+
+      '<img class="app-header-logo-img" style="width:82px;height:82px" src="'+LOGO+'" alt="">'+
+    '</div>'+
+    '</div>');
 }
 function printVoucher(v){
   // Header/footer/seal/sign now mirror printInvoice() exactly (same
@@ -8295,7 +8642,7 @@ function rUsers(m){
     });
   }
   if(usrTab==='perms'){
-    const mods = NAV.filter(n=>n.id).map(n=>[n.id,n.t]);
+    const mods = NAV.filter(n=>n.id && !n.sub).map(n=>[n.id,n.t]);
     host.innerHTML = '<div class="card tbl-wrap"><table class="tbl perm-grid"><thead><tr><th>Module</th><th>Super Admin</th><th>Manager</th><th>Staff</th></tr></thead><tbody>'+
       mods.map(md=>'<tr><td style="text-align:left"><b>'+esc(md[1])+'</b></td><td><span class="chip c-ok">Full</span></td>'+
         ['Manager','Staff'].map(role=>'<td><select data-role="'+role+'" data-mod="'+md[0]+'"'+(superAdmin?'':' disabled')+'>'+
@@ -8310,7 +8657,7 @@ function rUsers(m){
   }
   if(usrTab==='audit'){
     host.innerHTML = tbl(['When','User','Action','Detail'],
-      S.audit.slice(0,120).map(a=>'<tr><td class="num tiny">'+new Date(a.ts).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})+'</td>'+
+      S.audit.slice(0,120).map(a=>'<tr><td class="num tiny">'+fdatetime(a.ts)+'</td>'+
         '<td>'+esc(a.user)+'</td><td><b>'+esc(a.action)+'</b></td><td class="tiny">'+esc(a.detail)+'</td></tr>').join(''));
   }
 }
@@ -8932,6 +9279,7 @@ async function boot(){
     // records exist to match against. Safe every boot; only fills gaps.
     if(S.masterCodes && ensureReceiptLedgerCodes()) save();
     if(!S.timesheets) S.timesheets = [];
+    if(!S.advances) S.advances = [];
     if(!S.quotations) S.quotations = [];
     if(S.meta && S.meta.seq && S.meta.seq.qtn===undefined) S.meta.seq.qtn = 1;
     // Starter sample quotations (Quotations -> Sample), added once. Fixed
@@ -8986,6 +9334,9 @@ async function boot(){
       // Business / Letter Head -- same access as Quotations.
       if(S.perms.Manager && S.perms.Manager.letterhead===undefined) S.perms.Manager.letterhead = S.perms.Manager.quotations || 'edit';
       if(S.perms.Staff && S.perms.Staff.letterhead===undefined) S.perms.Staff.letterhead = S.perms.Staff.quotations || 'edit';
+      // Business / Advance Payment -- same access as Payments.
+      if(S.perms.Manager && S.perms.Manager.advance===undefined) S.perms.Manager.advance = S.perms.Manager.payments || 'edit';
+      if(S.perms.Staff && S.perms.Staff.advance===undefined) S.perms.Staff.advance = S.perms.Staff.payments || 'view';
       // Master Edit takes over the per-row "Edit" that used to live on
       // General Ledger itself -- an existing install's Manager/Staff role
       // could already edit ledger entries, so carry that same level over
