@@ -1032,6 +1032,9 @@ table.tbl.mc-tbl td.mc-act .btn.sm{padding:3px 9px;font-size:11.5px}
 .contact-actions a.wa{background:#25d366;color:#fff}
 .contact-actions a.wa:hover{background:#1ebe5a}
 @media (max-width:920px){ .contact-actions{gap:8px} .contact-actions a{width:40px;height:40px;font-size:16px} }
+/* Small phones (under 360px wide, e.g. 320): tighter contact rows so the
+   name is not squeezed to one word per line next to the three buttons. */
+@media (max-width:359px){ #ct-list{padding:8px} .contact-row{gap:8px;padding:9px 2px} .contact-avatar{width:32px;height:32px;font-size:12px} .contact-actions{gap:5px} .contact-actions a{width:36px;height:36px;font-size:14px} }
 
 #bottomnav{display:none;position:fixed;bottom:0;left:0;right:0;z-index:59;background:var(--ink);padding:6px 4px calc(6px + env(safe-area-inset-bottom));grid-auto-flow:column;grid-auto-columns:1fr}
 #bottomnav button{background:none;border:0;color:#9d938a;font-size:9.5px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 2px;font-weight:600}
@@ -8122,6 +8125,18 @@ function dmyToISO(s){
   return dt.toISOString().slice(0,10);
 }
 const DMY_CAL = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>';
+// Typing only digits fills in the slashes as you go: 2, 24, 24/1, 24/11,
+// 24/11/2, ... 24/11/2026. Phones show a number pad with no "/" key, so
+// this has to work one key at a time, not only when 24112026 is pasted.
+// A "/" typed by the person (5/11/2026) is left as typed.
+function dmyAutoSlash(t, e){
+  if(!e || !e.inputType || e.inputType.indexOf('insert')!==0 || e.data==='/') return;
+  const v = t.value;
+  if(!/^(\d*|\d{2}\/\d*|\d{2}\/\d{2}\/?\d*)$/.test(v)) return;
+  const d = v.replace(/\D/g,'').slice(0,8);
+  const f = d.slice(0,2)+(d.length>2?'/'+d.slice(2,4):'')+(d.length>4?'/'+d.slice(4):'');
+  if(f!==v) t.value = f;
+}
 function dmyInputHTML(id, iso, title){
   return '<span class="dmy"><input id="'+id+'" class="dmy-t" inputmode="numeric" autocomplete="off" placeholder="DD/MM/YYYY" maxlength="10" value="'+fdmy(iso)+'"'+(title?' title="'+esc(title)+'"':'')+'>'+
     '<button type="button" class="dmy-b" title="Pick a date" aria-label="Pick a date">'+DMY_CAL+'</button>'+
@@ -8135,11 +8150,7 @@ function wireDmy(root, onChange){
     b.onclick = ()=>{ p.value = dmyToISO(t.value) || todayISO(); try{ p.showPicker(); }catch(e){ p.focus(); p.click(); } };
     p.onchange = ()=>{ if(p.value){ t.value = fdmy(p.value); check(); if(onChange) onChange(t); } };
     t.oninput = e=>{
-      // Typing 24112026 fills in the slashes: 24/11/2026.
-      if(e && e.inputType && e.inputType.indexOf('insert')===0 && /^[\d\/]*$/.test(t.value) && t.value.indexOf('/')<0){
-        const d = t.value.slice(0,8);
-        t.value = d.slice(0,2)+(d.length>2?'/'+d.slice(2,4):'')+(d.length>4?'/'+d.slice(4):'');
-      }
+      dmyAutoSlash(t, e);
       if(check() && onChange && (!t.value || t.value.length>=8)) onChange(t);
     };
     t.onblur = check;
@@ -8178,10 +8189,7 @@ function enhanceDateInput(n){
     n.dispatchEvent(new Event('change', {bubbles:true}));
   };
   t.addEventListener('input', e=>{
-    if(e.inputType && e.inputType.indexOf('insert')===0 && /^\d*$/.test(t.value)){
-      const d = t.value.slice(0,8);
-      t.value = d.slice(0,2)+(d.length>2?'/'+d.slice(2,4):'')+(d.length>4?'/'+d.slice(4):'');
-    }
+    dmyAutoSlash(t, e);
     if(!t.value){ t.classList.remove('dmy-bad'); push(''); return; }
     const iso = dmyToISO(t.value);
     if(iso){ t.classList.remove('dmy-bad'); push(iso); }
