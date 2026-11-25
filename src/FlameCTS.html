@@ -2151,8 +2151,29 @@ function can(mod, need){ // need: 'view' | 'edit'
 }
 async function loadTeam(){
   const { data, error } = await sb.from('profiles').select('*').order('created_at', {ascending:true});
-  if(!error) TEAM = data || [];
+  if(!error){ TEAM = data || []; await ensureSuperAdminExists(); }
   return TEAM;
+}
+// The software always keeps at least one active Super Admin (full access,
+// approvals, managing the team). Changing the last one's role or
+// deactivating them is only allowed by handing Super Admin to someone else
+// in the same step (see userForm / the Deactivate button). As a safety net,
+// if the team is ever found with no active Super Admin at all (e.g. a role
+// changed directly in the Supabase dashboard), the longest-standing active
+// teammate is made Super Admin automatically and it is noted in the audit trail.
+function activeSuperAdmins(excludeId){ return TEAM.filter(p=>p.role==='Super Admin' && p.active && p.id!==excludeId); }
+let superAdminRepairTried = false;
+async function ensureSuperAdminExists(){
+  if(!TEAM.length || activeSuperAdmins().length || superAdminRepairTried) return;
+  const heir = TEAM.filter(p=>p.active)[0];
+  if(!heir) return;
+  superAdminRepairTried = true;
+  const { error } = await sb.from('profiles').update({role:'Super Admin'}).eq('id', heir.id);
+  if(error) return;
+  const was = heir.role;
+  heir.role = 'Super Admin';
+  if(MY_PROFILE && MY_PROFILE.id===heir.id) MY_PROFILE.role = 'Super Admin';
+  if(S && S.audit){ logAudit('Super Admin given automatically', heir.name+' (was '+was+') — the team had no active Super Admin'); }
 }
 function logAudit(action, detail){
   const u = currentUser();
@@ -8760,6 +8781,9 @@ function rUsers(m){
     $$('#u-body [data-msg]').forEach(x=>x.onclick=()=>composeMessage(x.dataset.msg));
     $$('#u-body [data-tog]').forEach(x=>x.onclick=async ()=>{
       const u = TEAM.find(y=>y.id===x.dataset.tog); const next = !u.active;
+      if(!next && u.role==='Super Admin' && !activeSuperAdmins(u.id).length){
+        toast(u.name+' is the only Super Admin. Use Edit to hand Super Admin to someone else first.', true); return;
+      }
       const { error } = await sb.from('profiles').update({active:next}).eq('id', u.id);
       if(error){ toast('Could not update: '+error.message, true); return; }
       u.active = next;
@@ -8805,19 +8829,46 @@ function addProfileForm(){
     }});
 }
 function userForm(u){
-  modal('Edit '+u.name,
+  // Taking Super Admin away from the last active one needs someone to hand it to.
+  const lastSA = u.role==='Super Admin' && u.active && !activeSuperAdmins(u.id).length;
+  const heirs = TEAM.filter(p=>p.active && p.id!==u.id);
+  const mm = modal('Edit '+u.name,
     '<div class="frow"><div class="f"><label>Full name *</label><input id="n-nm" value="'+esc(u.name)+'"></div>'+
     '<div class="f"><label>Job title</label><input id="n-ti" value="'+esc(u.title||'')+'"></div></div>'+
     '<div class="f"><label>Role</label><select id="n-ro">'+['Staff','Manager','Admin','Super Admin'].map(r=>'<option'+(u.role===r?' selected':'')+'>'+r+'</option>').join('')+'</select></div>'+
+    (lastSA?'<div class="f" id="n-heir-box" style="display:none"><label>Who becomes Super Admin instead? *</label>'+
+      (heirs.length
+        ? '<select id="n-heir"><option value="">— select —</option>'+heirs.map(p=>'<option value="'+p.id+'">'+esc(p.name)+' ('+esc(p.role)+')</option>').join('')+'</select>'+
+          '<div class="tiny">'+esc(u.name)+' is the only Super Admin. The software always keeps one, so the person you pick here gets Super Admin (full access) at the same time.</div>'
+        : '<div class="tiny" style="color:var(--bad)">'+esc(u.name)+' is the only Super Admin and there is no other active teammate to take over. Add or activate a teammate first.</div>')+
+      '</div>':'')+
     '<div class="tiny">To reset this person\'s password, use the Supabase dashboard → Authentication → Users.</div>',
-    {onSave:async (mo)=>{
+    {onSave:(mo)=>{
       const nm=val({node:mo},'n-nm'); if(!nm){ toast('Name is required.', true); return false; }
       const patch = { name:nm, title:val({node:mo},'n-ti'), role:val({node:mo},'n-ro') };
-      const { error } = await sb.from('profiles').update(patch).eq('id', u.id);
-      if(error){ toast('Could not save: '+error.message, true); return false; }
-      Object.assign(u, patch);
-      logAudit('Profile updated', nm); save(); render(); toast('Saved.');
+      let heir = null;
+      if(lastSA && patch.role!=='Super Admin'){
+        if(!heirs.length){ toast('There must always be one Super Admin. Add or activate another teammate first.', true); return false; }
+        heir = TEAM.find(p=>p.id===val({node:mo},'n-heir'));
+        if(!heir){ toast('Pick who becomes Super Admin instead.', true); return false; }
+      }
+      (async ()=>{
+        if(heir){
+          const r1 = await sb.from('profiles').update({role:'Super Admin'}).eq('id', heir.id);
+          if(r1.error){ toast('Could not make '+heir.name+' Super Admin: '+r1.error.message+'. Nothing was changed.', true); return; }
+          const was = heir.role; heir.role = 'Super Admin';
+          logAudit('Super Admin handed over', heir.name+' (was '+was+') takes over from '+u.name);
+        }
+        const { error } = await sb.from('profiles').update(patch).eq('id', u.id);
+        if(error){ toast('Could not save: '+error.message, true); render(); return; }
+        Object.assign(u, patch);
+        if(MY_PROFILE && MY_PROFILE.id===u.id) MY_PROFILE.role = patch.role;
+        logAudit('Profile updated', nm+(heir?' · role '+patch.role:'')); save(); render();
+        toast(heir ? 'Saved. '+heir.name+' is now the Super Admin.' : 'Saved.');
+      })();
     }});
+  const ro = mm.node.querySelector('#n-ro'), hb = mm.node.querySelector('#n-heir-box');
+  if(hb){ const upd = ()=>{ hb.style.display = ro.value==='Super Admin' ? 'none' : ''; }; ro.onchange = upd; upd(); }
 }
 function pwForm(){
   modal('Change my password',
